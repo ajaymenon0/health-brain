@@ -1,12 +1,12 @@
-import { Context, Scenes } from "telegraf";
+import { Scenes } from "telegraf";
 
 export interface WizardSession extends Scenes.WizardSessionData {
-  date?: string;
-  screenshotType?: string;
+  date?: string | undefined;
+  expectsCustomDate?: boolean;
 }
 
 export interface BotContext extends Scenes.WizardContext<WizardSession> {
-  scene: Scenes.SceneContextScene<BotContext, Scenes.WizardSessionData>;
+  scene: Scenes.SceneContextScene<BotContext, WizardSession>;
   wizard: Scenes.WizardContextWizard<BotContext>;
   session: Scenes.WizardSession<WizardSession>;
 }

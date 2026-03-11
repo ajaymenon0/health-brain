@@ -1,11 +1,35 @@
 import { Markup, Scenes, session, Telegraf } from "telegraf";
 import config from "./config.ts";
 import { WizardScene } from "telegraf/scenes";
-import type { BotContext } from "./types/botContext.ts";
+import type { BotContext, WizardSession } from "./types/botContext.ts";
 
 const bot = new Telegraf<BotContext>(config.telegram.token);
 
-export const screenshotWizard = new WizardScene<any>(
+type DateChoice = "date_today" | "date_yesterday" | "date_custom";
+const DATE_CHOICES = new Set<DateChoice>([
+  "date_today",
+  "date_yesterday",
+  "date_custom",
+]);
+
+function formatDate(date: Date): string {
+  const dd = String(date.getDate()).padStart(2, "0");
+  const mm = String(date.getMonth() + 1).padStart(2, "0");
+  const yyyy = date.getFullYear();
+
+  return `${dd}${mm}${yyyy}`;
+}
+
+function isDateChoice(value: string): value is DateChoice {
+  return DATE_CHOICES.has(value as DateChoice);
+}
+
+function wizardState(ctx: BotContext): WizardSession {
+  // Telegraf exposes wizard.state as `object`, so narrow it once here.
+  return ctx.wizard.state as WizardSession;
+}
+
+export const screenshotWizard = new WizardScene<BotContext>(
   "screenshot-wizard",
   async (ctx) => {
     await ctx.reply(
@@ -26,16 +50,20 @@ export const screenshotWizard = new WizardScene<any>(
     }
 
     await ctx.answerCbQuery();
-    await ctx.editMessageReplyMarkup();
+    await ctx.editMessageReplyMarkup(undefined);
 
     const choice = ctx.callbackQuery.data;
 
+    if (!isDateChoice(choice)) {
+      await ctx.reply("Please select a valid option.");
+      return;
+    }
+
+    const state = wizardState(ctx);
+
     if (choice === "date_today") {
-      const today = new Date();
-      const dd = String(today.getDate()).padStart(2, "0");
-      const mm = String(today.getMonth() + 1).padStart(2, "0");
-      const yyyy = today.getFullYear();
-      ctx.wizard.state.date = `${dd}${mm}${yyyy}`;
+      state.date = formatDate(new Date());
+      state.expectsCustomDate = false;
 
       await ctx.reply("Great! You've selected today.");
       ctx.wizard.selectStep(3);
@@ -44,11 +72,8 @@ export const screenshotWizard = new WizardScene<any>(
     }
 
     if (choice === "date_yesterday") {
-      const yesterday = new Date(Date.now() - 86400000);
-      const dd = String(yesterday.getDate()).padStart(2, "0");
-      const mm = String(yesterday.getMonth() + 1).padStart(2, "0");
-      const yyyy = yesterday.getFullYear();
-      ctx.wizard.state.date = `${dd}${mm}${yyyy}`;
+      state.date = formatDate(new Date(Date.now() - 86400000));
+      state.expectsCustomDate = false;
 
       await ctx.reply("Great! You've selected yesterday.");
       ctx.wizard.selectStep(3);
@@ -57,18 +82,24 @@ export const screenshotWizard = new WizardScene<any>(
     }
 
     if (choice === "date_custom") {
-      ctx.wizard.state.date = "date_custom";
+      state.date = undefined;
+      state.expectsCustomDate = true;
       await ctx.reply("Please enter the date in ddmmyyyy format.");
       return ctx.wizard.next();
     }
-
-    await ctx.reply("Please select a valid option.");
   },
   async (ctx) => {
-    console.log("Wizard state before processing date:", ctx.wizard.state);
-    if (ctx.wizard.state.date === "date_custom") {
-      const text = ctx.message?.text;
-      // check if text is in ddmmyyyy format
+    const state = wizardState(ctx);
+    console.log("Wizard state before processing date:", state);
+
+    if (state.expectsCustomDate) {
+      if (!ctx.message || !("text" in ctx.message)) {
+        await ctx.reply("Please enter the date in ddmmyyyy format.");
+        return;
+      }
+
+      const text = ctx.message.text;
+
       if (!text || !/^\d{2}\d{2}\d{4}$/.test(text)) {
         await ctx.reply(
           "Invalid date format. Please enter the date in ddmmyyyy format.",
@@ -76,13 +107,17 @@ export const screenshotWizard = new WizardScene<any>(
         return;
       }
 
-      ctx.wizard.state.date = text;
+      state.date = text;
+      state.expectsCustomDate = false;
     }
+
     ctx.wizard.selectStep(3);
     await ctx.reply("Please upload the screenshot now.");
     return;
   },
   async (ctx) => {
+    const state = wizardState(ctx);
+
     if (!ctx.message || !("photo" in ctx.message)) {
       await ctx.reply("Please upload a screenshot image.");
       return;
@@ -97,7 +132,7 @@ export const screenshotWizard = new WizardScene<any>(
 
     const fileLink = await ctx.telegram.getFileLink(photo.file_id);
 
-    console.log("Received screenshot for date:", ctx.wizard.state.date);
+    console.log("Received screenshot for date:", state.date);
     console.log("File link:", fileLink.href);
 
     await ctx.reply("Screenshot received. Parsing now...");
@@ -105,7 +140,7 @@ export const screenshotWizard = new WizardScene<any>(
   },
 );
 
-const stage = new Scenes.Stage([screenshotWizard]);
+const stage = new Scenes.Stage<BotContext>([screenshotWizard]);
 bot.use(session());
 bot.use(stage.middleware());
 
