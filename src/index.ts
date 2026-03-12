@@ -1,4 +1,4 @@
-import { Markup, Scenes, session, Telegraf } from "telegraf";
+import { Markup, Scenes, session, Telegraf, type Middleware } from "telegraf";
 import { message } from "telegraf/filters";
 import config from "./config.ts";
 import { WizardScene } from "telegraf/scenes";
@@ -13,6 +13,19 @@ function wizardState(ctx: BotContext): WizardSession {
   // Telegraf exposes wizard.state as `object`, so narrow it once here.
   return ctx.wizard.state as WizardSession;
 }
+
+const exitWizardMiddleware: Middleware<BotContext> = async (ctx, next) => {
+  if (!ctx.message || !("text" in ctx.message)) {
+    return next();
+  }
+
+  if (ctx.message.text.trim().toLowerCase() !== "exit") {
+    return next();
+  }
+
+  await ctx.reply("Exited the screenshot wizard.");
+  await ctx.scene.leave();
+};
 
 async function processScreenshot(ctx: BotContext, state: WizardSession) {
   const photoFileId = state.photoFileId;
@@ -189,6 +202,7 @@ export const screenshotWizard = new WizardScene<BotContext>(
     return;
   },
 );
+screenshotWizard.use(exitWizardMiddleware);
 
 const stage = new Scenes.Stage<BotContext>([screenshotWizard]);
 bot.use(session());
