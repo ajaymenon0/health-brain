@@ -60,9 +60,9 @@ async function askScreenshotType(ctx: BotContext) {
   await ctx.reply(
     "What type of image is it?",
     Markup.inlineKeyboard(
-      SCREENSHOT_TYPES.map((type) =>
+      SCREENSHOT_TYPES.map((type) => [
         Markup.button.callback(type.label, type.value),
-      ),
+      ]),
     ),
   );
 }
