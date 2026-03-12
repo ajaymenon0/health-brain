@@ -2,6 +2,7 @@ import { Markup, Scenes, session, Telegraf } from "telegraf";
 import config from "./config.ts";
 import { WizardScene } from "telegraf/scenes";
 import type { BotContext, WizardSession } from "./types/botContext.ts";
+import { parseScreenshot } from "./parser.ts";
 
 const bot = new Telegraf<BotContext>(config.telegram.token);
 
@@ -132,10 +133,18 @@ export const screenshotWizard = new WizardScene<BotContext>(
 
     const fileLink = await ctx.telegram.getFileLink(photo.file_id);
 
+    await ctx.reply("Screenshot received. Parsing now...");
+
+    const result = await parseScreenshot(fileLink.href);
+    console.log("Parsed screenshot data:", result);
+
     console.log("Received screenshot for date:", state.date);
     console.log("File link:", fileLink.href);
 
-    await ctx.reply("Screenshot received. Parsing now...");
+    await ctx.reply(
+      "Screenshot parsed successfully! Here's the extracted data:",
+    );
+    await ctx.reply(result);
     return ctx.scene.leave();
   },
 );
