@@ -1,4 +1,5 @@
 import { Markup, Scenes, session, Telegraf } from "telegraf";
+import { message } from "telegraf/filters";
 import config from "./config.ts";
 import { WizardScene } from "telegraf/scenes";
 import type { BotContext, WizardSession } from "./types/botContext.ts";
@@ -28,6 +29,31 @@ function isDateChoice(value: string): value is DateChoice {
 function wizardState(ctx: BotContext): WizardSession {
   // Telegraf exposes wizard.state as `object`, so narrow it once here.
   return ctx.wizard.state as WizardSession;
+}
+
+async function processScreenshot(ctx: BotContext, state: WizardSession) {
+  const photoFileId = state.photoFileId;
+
+  if (!photoFileId) {
+    await ctx.reply("Please upload a screenshot image.");
+    return;
+  }
+
+  const fileLink = await ctx.telegram.getFileLink(photoFileId);
+
+  await ctx.reply("Screenshot received. Parsing now...");
+
+  const result = await parseScreenshot(fileLink.href);
+  console.log("Parsed screenshot data:", result);
+
+  console.log("Received screenshot for date:", state.date);
+  console.log("File link:", fileLink.href);
+
+  await ctx.reply(
+    "Screenshot parsed successfully! Here's the extracted data:",
+  );
+  await ctx.reply(result);
+  await ctx.scene.leave();
 }
 
 export const screenshotWizard = new WizardScene<BotContext>(
@@ -67,6 +93,11 @@ export const screenshotWizard = new WizardScene<BotContext>(
       state.expectsCustomDate = false;
 
       await ctx.reply("Great! You've selected today.");
+      if (state.photoFileId) {
+        await processScreenshot(ctx, state);
+        return;
+      }
+
       ctx.wizard.selectStep(3);
       await ctx.reply("Please upload the screenshot now.");
       return;
@@ -77,6 +108,11 @@ export const screenshotWizard = new WizardScene<BotContext>(
       state.expectsCustomDate = false;
 
       await ctx.reply("Great! You've selected yesterday.");
+      if (state.photoFileId) {
+        await processScreenshot(ctx, state);
+        return;
+      }
+
       ctx.wizard.selectStep(3);
       await ctx.reply("Please upload the screenshot now.");
       return;
@@ -112,6 +148,11 @@ export const screenshotWizard = new WizardScene<BotContext>(
       state.expectsCustomDate = false;
     }
 
+    if (state.photoFileId) {
+      await processScreenshot(ctx, state);
+      return;
+    }
+
     ctx.wizard.selectStep(3);
     await ctx.reply("Please upload the screenshot now.");
     return;
@@ -131,21 +172,9 @@ export const screenshotWizard = new WizardScene<BotContext>(
       return;
     }
 
-    const fileLink = await ctx.telegram.getFileLink(photo.file_id);
-
-    await ctx.reply("Screenshot received. Parsing now...");
-
-    const result = await parseScreenshot(fileLink.href);
-    console.log("Parsed screenshot data:", result);
-
-    console.log("Received screenshot for date:", state.date);
-    console.log("File link:", fileLink.href);
-
-    await ctx.reply(
-      "Screenshot parsed successfully! Here's the extracted data:",
-    );
-    await ctx.reply(result);
-    return ctx.scene.leave();
+    state.photoFileId = photo.file_id;
+    await processScreenshot(ctx, state);
+    return;
   },
 );
 
@@ -153,7 +182,21 @@ const stage = new Scenes.Stage<BotContext>([screenshotWizard]);
 bot.use(session());
 bot.use(stage.middleware());
 
-bot.command("upload", (ctx) => ctx.scene.enter("screenshot-wizard"));
+bot.on(message("photo"), async (ctx, next) => {
+  if (ctx.scene.current?.id === "screenshot-wizard") {
+    return next();
+  }
+
+  const photo = ctx.message.photo.at(-1);
+
+  if (!photo) {
+    return next();
+  }
+
+  return ctx.scene.enter("screenshot-wizard", {
+    photoFileId: photo.file_id,
+  });
+});
 
 bot.launch();
 

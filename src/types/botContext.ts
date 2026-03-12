@@ -3,6 +3,7 @@ import { Scenes } from "telegraf";
 export interface WizardSession extends Scenes.WizardSessionData {
   date?: string | undefined;
   expectsCustomDate?: boolean;
+  photoFileId?: string;
 }
 
 export interface BotContext extends Scenes.WizardContext<WizardSession> {
