@@ -6,7 +6,7 @@ dotenv.config();
 const schema = z.object({
   TELEGRAM_BOT_TOKEN: z.string(),
   OPENAI_API_KEY: z.string(),
-  GOOGLE_SHEET_ID: z.string(),
+  GOOGLE_SHEET_ID: z.string().optional(),
   PORT: z.string().default("3000"),
   NODE_ENV: z.enum(["development", "production"]).default("development"),
   AI_MODEL: z.string().default("gpt-3.5-turbo"),
