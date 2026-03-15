@@ -1,16 +1,16 @@
 import { Markup, Scenes, session, Telegraf, type Middleware } from "telegraf";
 import { message } from "telegraf/filters";
-import config from "./config.ts";
+import config from "./config";
 import { WizardScene } from "telegraf/scenes";
 import type { BotContext, WizardSession } from "./types";
-import { parseScreenshot } from "./parser.ts";
+import { parseScreenshot } from "./parser";
 import { SCREENSHOT_TYPES } from "./enums";
 import {
   formatDate,
   formatParsedScreenshot,
   isDateChoice,
   isScreenshotType,
-} from "./utils.ts";
+} from "./utils";
 
 const bot = new Telegraf<BotContext>(config.telegram.token);
 
@@ -66,7 +66,7 @@ async function askScreenshotType(ctx: BotContext) {
   await ctx.reply(
     "What type of image is it?",
     Markup.inlineKeyboard(
-      SCREENSHOT_TYPES.map((type) => [
+      SCREENSHOT_TYPES.map((type: (typeof SCREENSHOT_TYPES)[number]) => [
         Markup.button.callback(type.label, type.value),
       ]),
     ),

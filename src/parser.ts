@@ -1,5 +1,5 @@
 import OpenAI from "openai";
-import config from "./config.ts";
+import config from "./config";
 import {
   garminDailyStatsSchema,
   garminRunSchema,
@@ -8,7 +8,7 @@ import {
   healthifyMeMacrosSchema,
   hevyWorkoutSchema,
   type ScreenshotType,
-} from "./types.ts";
+} from "./types";
 import z from "zod";
 import { zodTextFormat } from "openai/helpers/zod";
 

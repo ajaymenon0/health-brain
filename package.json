@@ -6,8 +6,8 @@
   "type": "module",
   "scripts": {
     "dev": "tsx watch src/index.ts",
-    "start": "node dist/index.js",
-    "build": "tsc"
+    "start": "tsx src/index.ts",
+    "build": "tsc --noEmit"
   },
   "author": "dinosaras",
   "license": "ISC",
