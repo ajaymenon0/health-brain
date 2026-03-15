@@ -5,7 +5,12 @@ import { WizardScene } from "telegraf/scenes";
 import type { BotContext, WizardSession } from "./types";
 import { parseScreenshot } from "./parser.ts";
 import { SCREENSHOT_TYPES } from "./enums";
-import { formatDate, isDateChoice, isScreenshotType } from "./utils.ts";
+import {
+  formatDate,
+  formatParsedScreenshot,
+  isDateChoice,
+  isScreenshotType,
+} from "./utils.ts";
 
 const bot = new Telegraf<BotContext>(config.telegram.token);
 
@@ -51,8 +56,9 @@ async function processScreenshot(ctx: BotContext, state: WizardSession) {
   console.log("Received screenshot for date:", state.date);
   console.log("File link:", fileLink.href);
 
-  await ctx.reply("Screenshot parsed successfully! Here's the extracted data:");
-  await ctx.reply(result);
+  await ctx.reply(formatParsedScreenshot(result), {
+    parse_mode: "HTML",
+  });
   await ctx.scene.leave();
 }
 
