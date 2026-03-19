@@ -5,6 +5,7 @@ import { WizardScene } from "telegraf/scenes";
 import type { BotContext, WizardSession } from "./types";
 import { parseScreenshot } from "./parser";
 import { SCREENSHOT_TYPES } from "./enums";
+import { persistParsedScreenshot } from "./storage";
 import {
   formatDate,
   formatParsedScreenshot,
@@ -55,6 +56,23 @@ async function processScreenshot(ctx: BotContext, state: WizardSession) {
 
   console.log("Received screenshot for date:", state.date);
   console.log("File link:", fileLink.href);
+
+  if (state.date && ctx.from) {
+    try {
+      await persistParsedScreenshot({
+        telegramUserId: ctx.from.id,
+        screenshotType,
+        entryDate: state.date,
+        parsedResult: result,
+      });
+      await ctx.reply("Stored parsed screenshot in Supabase.");
+    } catch (error) {
+      console.error("Failed to persist parsed screenshot:", error);
+      await ctx.reply(
+        "Screenshot parsed, but storing it in Supabase failed. Check server logs.",
+      );
+    }
+  }
 
   await ctx.reply(formatParsedScreenshot(result), {
     parse_mode: "HTML",
