@@ -15,6 +15,8 @@ export interface WizardSession extends Scenes.WizardSessionData {
   expectsCustomDate?: boolean;
   photoFileId?: string;
   screenshotType?: ScreenshotType;
+  parsedResult?: string | undefined;
+  awaitingSaveConfirmation?: boolean | undefined;
 }
 
 export interface BotContext extends Scenes.WizardContext<WizardSession> {
