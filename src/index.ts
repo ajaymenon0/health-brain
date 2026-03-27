@@ -5,6 +5,7 @@ import { WizardScene } from "telegraf/scenes";
 import type { BotContext, WizardSession } from "./types";
 import { parseScreenshot } from "./parser";
 import { SCREENSHOT_TYPES } from "./enums";
+import { persistParsedScreenshot } from "./storage";
 import {
   formatDate,
   formatParsedScreenshot,
@@ -13,6 +14,7 @@ import {
 } from "./utils";
 
 const bot = new Telegraf<BotContext>(config.telegram.token);
+type SaveChoice = "save_yes" | "save_no";
 
 function wizardState(ctx: BotContext): WizardSession {
   // Telegraf exposes wizard.state as `object`, so narrow it once here.
@@ -35,6 +37,7 @@ const exitWizardMiddleware: Middleware<BotContext> = async (ctx, next) => {
 async function processScreenshot(ctx: BotContext, state: WizardSession) {
   const photoFileId = state.photoFileId;
   const screenshotType = state.screenshotType;
+  const entryDate = state.date;
 
   if (!photoFileId) {
     await ctx.reply("Please upload a screenshot image.");
@@ -43,6 +46,16 @@ async function processScreenshot(ctx: BotContext, state: WizardSession) {
 
   if (!screenshotType) {
     await ctx.reply("Please select the image type.");
+    return;
+  }
+
+  if (!entryDate) {
+    await ctx.reply("Please select or enter the date for this screenshot first.");
+    return;
+  }
+
+  if (!ctx.from) {
+    await ctx.reply("Could not identify the Telegram user for this screenshot.");
     return;
   }
 
@@ -56,10 +69,22 @@ async function processScreenshot(ctx: BotContext, state: WizardSession) {
   console.log("Received screenshot for date:", state.date);
   console.log("File link:", fileLink.href);
 
+  state.parsedResult = result;
+  state.awaitingSaveConfirmation = true;
+
   await ctx.reply(formatParsedScreenshot(result), {
     parse_mode: "HTML",
   });
-  await ctx.scene.leave();
+  ctx.wizard.selectStep(5);
+  await ctx.reply(
+    "Do you want to save this to Supabase?",
+    Markup.inlineKeyboard([
+      [
+        Markup.button.callback("Yes", "save_yes"),
+        Markup.button.callback("No", "save_no"),
+      ],
+    ]),
+  );
 }
 
 async function askScreenshotType(ctx: BotContext) {
@@ -206,6 +231,58 @@ export const screenshotWizard = new WizardScene<BotContext>(
     state.photoFileId = photo.file_id;
     await processScreenshot(ctx, state);
     return;
+  },
+  async (ctx) => {
+    if (!ctx.callbackQuery || !("data" in ctx.callbackQuery)) {
+      return;
+    }
+
+    await ctx.answerCbQuery();
+    await ctx.editMessageReplyMarkup(undefined);
+
+    const state = wizardState(ctx);
+    const choice = ctx.callbackQuery.data as SaveChoice;
+
+    if (!state.awaitingSaveConfirmation || !state.parsedResult) {
+      await ctx.reply("There is no parsed screenshot waiting to be saved.");
+      return ctx.scene.leave();
+    }
+
+    if (choice === "save_no") {
+      state.awaitingSaveConfirmation = false;
+      state.parsedResult = undefined;
+      await ctx.reply("Okay, I did not save it.");
+      return ctx.scene.leave();
+    }
+
+    if (choice !== "save_yes") {
+      await ctx.reply("Please choose Yes or No.");
+      return;
+    }
+
+    if (!state.date || !state.screenshotType || !ctx.from) {
+      await ctx.reply("Missing data required to save this screenshot.");
+      return ctx.scene.leave();
+    }
+
+    try {
+      await persistParsedScreenshot({
+        telegramUserId: ctx.from.id,
+        screenshotType: state.screenshotType,
+        entryDate: state.date,
+        parsedResult: state.parsedResult,
+      });
+      state.awaitingSaveConfirmation = false;
+      state.parsedResult = undefined;
+      await ctx.reply("Stored parsed screenshot in Supabase.");
+    } catch (error) {
+      console.error("Failed to persist parsed screenshot:", error);
+      await ctx.reply(
+        "Saving to Supabase failed. Check server logs and try again.",
+      );
+    }
+
+    return ctx.scene.leave();
   },
 );
 screenshotWizard.use(exitWizardMiddleware);

@@ -15,6 +15,8 @@ export interface WizardSession extends Scenes.WizardSessionData {
   expectsCustomDate?: boolean;
   photoFileId?: string;
   screenshotType?: ScreenshotType;
+  parsedResult?: string | undefined;
+  awaitingSaveConfirmation?: boolean | undefined;
 }
 
 export interface BotContext extends Scenes.WizardContext<WizardSession> {
@@ -394,17 +396,17 @@ export const hevyWorkoutSchema = z.object({
 
           weight_kg: z
             .number()
-            .optional()
+            .nullable()
             .describe("Weight used in kilograms for this set if present."),
 
           reps: z
             .number()
-            .optional()
+            .nullable()
             .describe("Number of repetitions performed in this set."),
 
           duration_sec: z
             .number()
-            .optional()
+            .nullable()
             .describe(
               "Duration in seconds for time-based exercises such as Plank.",
             ),
