@@ -2,8 +2,8 @@ import { Markup, Scenes, session, Telegraf, type Middleware } from "telegraf";
 import { message } from "telegraf/filters";
 import config from "./config";
 import { WizardScene } from "telegraf/scenes";
-import type { BotContext, WizardSession } from "./types";
-import { parseScreenshot } from "./parser";
+import type { BotContext, ScreenshotType, WizardSession } from "./types";
+import { classifyScreenshotType, parseScreenshot } from "./parser";
 import { SCREENSHOT_TYPES } from "./enums";
 import { persistParsedScreenshot } from "./storage";
 import {
@@ -16,6 +16,7 @@ import {
 
 const bot = new Telegraf<BotContext>(config.telegram.token);
 type SaveChoice = "save_yes" | "save_no";
+type DetectedTypeChoice = "detected_type_yes" | "detected_type_no";
 
 function wizardState(ctx: BotContext): WizardSession {
   // Telegraf exposes wizard.state as `object`, so narrow it once here.
@@ -99,6 +100,49 @@ async function askScreenshotType(ctx: BotContext) {
   );
 }
 
+function screenshotTypeLabel(value: ScreenshotType): string {
+  return (
+    SCREENSHOT_TYPES.find((type) => type.value === value)?.label ?? value
+  );
+}
+
+async function askDetectedScreenshotType(
+  ctx: BotContext,
+  screenshotType: ScreenshotType,
+) {
+  await ctx.reply(
+    `Image is of ${screenshotTypeLabel(screenshotType)}.`,
+    Markup.inlineKeyboard([
+      [
+        Markup.button.callback("Yes", "detected_type_yes"),
+        Markup.button.callback("No", "detected_type_no"),
+      ],
+    ]),
+  );
+}
+
+async function detectScreenshotTypeAndConfirm(
+  ctx: BotContext,
+  state: WizardSession,
+) {
+  const photoFileId = state.photoFileId;
+
+  if (!photoFileId) {
+    await ctx.reply("Please upload the screenshot now.");
+    ctx.wizard.selectStep(4);
+    return;
+  }
+
+  const fileLink = await ctx.telegram.getFileLink(photoFileId);
+  await ctx.reply("Trying to identify the screenshot type...");
+
+  const detectedType = await classifyScreenshotType(fileLink.href);
+  state.screenshotType = detectedType;
+  state.awaitingTypeConfirmation = true;
+  ctx.wizard.selectStep(3);
+  await askDetectedScreenshotType(ctx, detectedType);
+}
+
 export const screenshotWizard = new WizardScene<BotContext>(
   "screenshot-wizard",
   async (ctx) => {
@@ -136,8 +180,7 @@ export const screenshotWizard = new WizardScene<BotContext>(
       state.expectsCustomDate = false;
 
       await ctx.reply("Great! You've selected today.");
-      ctx.wizard.selectStep(3);
-      await askScreenshotType(ctx);
+      await detectScreenshotTypeAndConfirm(ctx, state);
       return;
     }
 
@@ -146,8 +189,7 @@ export const screenshotWizard = new WizardScene<BotContext>(
       state.expectsCustomDate = false;
 
       await ctx.reply("Great! You've selected yesterday.");
-      ctx.wizard.selectStep(3);
-      await askScreenshotType(ctx);
+      await detectScreenshotTypeAndConfirm(ctx, state);
       return;
     }
 
@@ -182,8 +224,7 @@ export const screenshotWizard = new WizardScene<BotContext>(
       await ctx.reply(`Great! You've selected ${formatReadableDate(text)}.`);
     }
 
-    ctx.wizard.selectStep(3);
-    await askScreenshotType(ctx);
+    await detectScreenshotTypeAndConfirm(ctx, state);
     return;
   },
   async (ctx) => {
@@ -196,6 +237,28 @@ export const screenshotWizard = new WizardScene<BotContext>(
 
     const state = wizardState(ctx);
     const choice = ctx.callbackQuery.data;
+
+    if (
+      state.awaitingTypeConfirmation &&
+      (choice === "detected_type_yes" || choice === "detected_type_no")
+    ) {
+      state.awaitingTypeConfirmation = false;
+
+      if (choice === "detected_type_yes") {
+        if (state.photoFileId) {
+          await processScreenshot(ctx, state);
+          return;
+        }
+
+        ctx.wizard.selectStep(4);
+        await ctx.reply("Please upload the screenshot now.");
+        return;
+      }
+
+      state.screenshotType = undefined;
+      await askScreenshotType(ctx);
+      return;
+    }
 
     if (!isScreenshotType(choice)) {
       await ctx.reply("Please select a valid image type.");
@@ -231,7 +294,7 @@ export const screenshotWizard = new WizardScene<BotContext>(
     }
 
     state.photoFileId = photo.file_id;
-    await processScreenshot(ctx, state);
+    await detectScreenshotTypeAndConfirm(ctx, state);
     return;
   },
   async (ctx) => {

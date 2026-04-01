@@ -25,6 +25,63 @@ const screenshotTypeToSchema: Record<ScreenshotType, z.ZodObject<any>> = {
   healthifyme_food_log: healthifyMeFoodLogSchema,
 };
 
+const screenshotTypeValues = [
+  "garmin_sleep",
+  "healthifyme_macros",
+  "healthifyme_food_log",
+  "garmin_run",
+  "garmin_daily_stats",
+  "hevy_workout",
+] as const;
+
+const screenshotTypeClassificationSchema = z.object({
+  screenshot_type: z.enum(screenshotTypeValues),
+});
+
+export async function classifyScreenshotType(
+  imageUrl: string,
+): Promise<ScreenshotType> {
+  const response = await client.responses.create({
+    model: "gpt-5.4-mini",
+    input: [
+      {
+        role: "user",
+        content: [
+          {
+            type: "input_text",
+            text: `
+              Identify the screenshot type from this health or fitness app screenshot.
+
+              Allowed values:
+              - garmin_sleep
+              - healthifyme_macros
+              - healthifyme_food_log
+              - garmin_run
+              - garmin_daily_stats
+              - hevy_workout
+            `,
+          },
+          {
+            type: "input_image",
+            image_url: imageUrl,
+            detail: "auto",
+          },
+        ],
+      },
+    ],
+    text: {
+      format: zodTextFormat(
+        screenshotTypeClassificationSchema,
+        "screenshot_type_classification",
+      ),
+    },
+  });
+
+  return screenshotTypeClassificationSchema.parse(
+    JSON.parse(response.output_text),
+  ).screenshot_type;
+}
+
 export async function parseScreenshot(
   imageUrl: string,
   screenshotType: ScreenshotType,

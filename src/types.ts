@@ -14,7 +14,8 @@ export interface WizardSession extends Scenes.WizardSessionData {
   date?: string | undefined;
   expectsCustomDate?: boolean;
   photoFileId?: string;
-  screenshotType?: ScreenshotType;
+  screenshotType?: ScreenshotType | undefined;
+  awaitingTypeConfirmation?: boolean | undefined;
   parsedResult?: string | undefined;
   awaitingSaveConfirmation?: boolean | undefined;
 }
