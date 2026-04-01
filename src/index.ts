@@ -52,12 +52,16 @@ async function processScreenshot(ctx: BotContext, state: WizardSession) {
   }
 
   if (!entryDate) {
-    await ctx.reply("Please select or enter the date for this screenshot first.");
+    await ctx.reply(
+      "Please select or enter the date for this screenshot first.",
+    );
     return;
   }
 
   if (!ctx.from) {
-    await ctx.reply("Could not identify the Telegram user for this screenshot.");
+    await ctx.reply(
+      "Could not identify the Telegram user for this screenshot.",
+    );
     return;
   }
 
@@ -101,9 +105,7 @@ async function askScreenshotType(ctx: BotContext) {
 }
 
 function screenshotTypeLabel(value: ScreenshotType): string {
-  return (
-    SCREENSHOT_TYPES.find((type) => type.value === value)?.label ?? value
-  );
+  return SCREENSHOT_TYPES.find((type) => type.value === value)?.label ?? value;
 }
 
 async function askDetectedScreenshotType(
@@ -111,7 +113,7 @@ async function askDetectedScreenshotType(
   screenshotType: ScreenshotType,
 ) {
   await ctx.reply(
-    `Image is of ${screenshotTypeLabel(screenshotType)}.`,
+    `Image type: ${screenshotTypeLabel(screenshotType)}?`,
     Markup.inlineKeyboard([
       [
         Markup.button.callback("Yes", "detected_type_yes"),
