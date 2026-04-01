@@ -9,6 +9,24 @@ export function formatDate(date: Date): string {
   return `${dd}${mm}${yyyy}`;
 }
 
+export function formatReadableDate(value: string): string {
+  if (!/^\d{2}\d{2}\d{4}$/.test(value)) {
+    throw new Error(`Expected date in ddmmyyyy format, received "${value}".`);
+  }
+
+  const day = Number(value.slice(0, 2));
+  const month = Number(value.slice(2, 4)) - 1;
+  const year = Number(value.slice(4, 8));
+  const date = new Date(Date.UTC(year, month, day));
+
+  return new Intl.DateTimeFormat("en-GB", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+    timeZone: "UTC",
+  }).format(date);
+}
+
 export function isDateChoice(value: string): value is DateChoice {
   return DATE_CHOICES.has(value as DateChoice);
 }

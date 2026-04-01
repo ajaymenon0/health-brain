@@ -9,6 +9,7 @@ import { persistParsedScreenshot } from "./storage";
 import {
   formatDate,
   formatParsedScreenshot,
+  formatReadableDate,
   isDateChoice,
   isScreenshotType,
 } from "./utils";
@@ -178,6 +179,7 @@ export const screenshotWizard = new WizardScene<BotContext>(
 
       state.date = text;
       state.expectsCustomDate = false;
+      await ctx.reply(`Great! You've selected ${formatReadableDate(text)}.`);
     }
 
     ctx.wizard.selectStep(3);
