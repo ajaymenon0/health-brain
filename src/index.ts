@@ -1,7 +1,9 @@
 import { Markup, Scenes, session, Telegraf, type Middleware } from "telegraf";
 import { message } from "telegraf/filters";
 import config from "./config";
-import { WizardScene } from "telegraf/scenes";
+import { BaseScene, WizardScene } from "telegraf/scenes";
+import { answerCoachQuestion } from "./coach";
+import { buildCoachContext, type CoachContext } from "./coachContext";
 import type { BotContext, ScreenshotType, WizardSession } from "./types";
 import { classifyScreenshotType, parseScreenshot } from "./parser";
 import { SCREENSHOT_TYPES } from "./enums";
@@ -17,10 +19,21 @@ import {
 const bot = new Telegraf<BotContext>(config.telegram.token);
 type SaveChoice = "save_yes" | "save_no";
 type DetectedTypeChoice = "detected_type_yes" | "detected_type_no";
+type CoachSceneState = {
+  coachContext?: CoachContext;
+  history?: Array<{
+    role: "user" | "assistant";
+    content: string;
+  }>;
+};
 
 function wizardState(ctx: BotContext): WizardSession {
   // Telegraf exposes wizard.state as `object`, so narrow it once here.
   return ctx.wizard.state as WizardSession;
+}
+
+function coachState(ctx: BotContext): CoachSceneState {
+  return ctx.scene.state as CoachSceneState;
 }
 
 const exitWizardMiddleware: Middleware<BotContext> = async (ctx, next) => {
@@ -354,9 +367,64 @@ export const screenshotWizard = new WizardScene<BotContext>(
 );
 screenshotWizard.use(exitWizardMiddleware);
 
-const stage = new Scenes.Stage<BotContext>([screenshotWizard]);
+const coachScene = new BaseScene<BotContext>("coach-scene");
+
+coachScene.enter(async (ctx) => {
+  const state = coachState(ctx);
+  state.history ??= [];
+  await ctx.reply("Coach here. Tell me what you need?");
+});
+
+coachScene.on(message("text"), async (ctx) => {
+  const text = ctx.message.text.trim();
+
+  if (text === "/exit") {
+    await ctx.reply("Leaving coach mode.");
+    await ctx.scene.leave();
+    return;
+  }
+
+  const state = coachState(ctx);
+
+  if (!state.coachContext) {
+    await ctx.reply("Coach context is missing. Please run /coach again.");
+    await ctx.scene.leave();
+    return;
+  }
+
+  state.history ??= [];
+
+  await ctx.sendChatAction("typing");
+  const answer = await answerCoachQuestion(text, state.coachContext, state.history);
+  state.history.push({ role: "user", content: text });
+  state.history.push({ role: "assistant", content: answer });
+
+  await ctx.reply(answer);
+});
+
+const stage = new Scenes.Stage<BotContext>([screenshotWizard, coachScene]);
 bot.use(session());
 bot.use(stage.middleware());
+
+bot.command("coach", async (ctx) => {
+  if (!ctx.from) {
+    await ctx.reply("I couldn't identify the Telegram user for coach mode.");
+    return;
+  }
+
+  try {
+    const context = await buildCoachContext(ctx.from.id);
+    await ctx.scene.enter("coach-scene", {
+      coachContext: context,
+      history: [],
+    });
+  } catch (error) {
+    console.error("Failed to build coach context:", error);
+    await ctx.reply(
+      "I couldn't prepare your coaching context from Supabase. Please try again.",
+    );
+  }
+});
 
 bot.on(message("photo"), async (ctx, next) => {
   if (ctx.scene.current?.id === "screenshot-wizard") {
