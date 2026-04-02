@@ -118,11 +118,12 @@ function average(values: number[]): number | null {
   );
 }
 
-export async function buildCoachContext(
+export async function buildCoachContextForDays(
   telegramUserId: number,
+  windowDays: number,
 ): Promise<CoachContext> {
   const user = await ensureUser(telegramUserId);
-  const startDate = isoDateDaysAgo(9);
+  const startDate = isoDateDaysAgo(windowDays - 1);
 
   const [macros, sleep, runs, dailyStats, foodLogs, workouts] =
     await Promise.all([
@@ -162,7 +163,7 @@ export async function buildCoachContext(
   );
 
   return {
-    window_days: 10,
+    window_days: windowDays,
     generated_at: new Date().toISOString(),
     macros,
     sleep,
@@ -184,4 +185,10 @@ export async function buildCoachContext(
       average_steps: average(dailyStats.map((entry) => entry.steps)),
     },
   };
+}
+
+export async function buildCoachContext(
+  telegramUserId: number,
+): Promise<CoachContext> {
+  return buildCoachContextForDays(telegramUserId, 10);
 }

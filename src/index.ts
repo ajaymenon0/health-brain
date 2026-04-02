@@ -3,17 +3,23 @@ import { message } from "telegraf/filters";
 import config from "./config";
 import { BaseScene, WizardScene } from "telegraf/scenes";
 import { answerCoachQuestion } from "./coach";
-import { buildCoachContext, type CoachContext } from "./coachContext";
+import {
+  buildCoachContext,
+  buildCoachContextForDays,
+  type CoachContext,
+} from "./coachContext";
 import type { BotContext, ScreenshotType, WizardSession } from "./types";
 import { classifyScreenshotType, parseScreenshot } from "./parser";
 import { SCREENSHOT_TYPES } from "./enums";
 import { persistParsedScreenshot } from "./storage";
 import {
+  formatCoachContextDump,
   formatDate,
   formatParsedScreenshot,
   formatReadableDate,
   isDateChoice,
   isScreenshotType,
+  splitMessage,
 } from "./utils";
 
 const bot = new Telegraf<BotContext>(config.telegram.token);
@@ -395,7 +401,11 @@ coachScene.on(message("text"), async (ctx) => {
   state.history ??= [];
 
   await ctx.sendChatAction("typing");
-  const answer = await answerCoachQuestion(text, state.coachContext, state.history);
+  const answer = await answerCoachQuestion(
+    text,
+    state.coachContext,
+    state.history,
+  );
   state.history.push({ role: "user", content: text });
   state.history.push({ role: "assistant", content: answer });
 
@@ -422,6 +432,30 @@ bot.command("coach", async (ctx) => {
     console.error("Failed to build coach context:", error);
     await ctx.reply(
       "I couldn't prepare your coaching context from Supabase. Please try again.",
+    );
+  }
+});
+
+bot.command("dump", async (ctx) => {
+  if (!ctx.from) {
+    await ctx.reply(
+      "I couldn't identify the Telegram user for the context dump.",
+    );
+    return;
+  }
+
+  try {
+    await ctx.reply("Preparing your 30-day context dump...");
+    const context = await buildCoachContextForDays(ctx.from.id, 30);
+    const dump = formatCoachContextDump(context);
+
+    for (const chunk of splitMessage(dump)) {
+      await ctx.reply(chunk);
+    }
+  } catch (error) {
+    console.error("Failed to build 30-day dump:", error);
+    await ctx.reply(
+      "I couldn't prepare the 30-day context dump from Supabase. Please try again.",
     );
   }
 });
