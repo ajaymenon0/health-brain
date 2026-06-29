@@ -45,6 +45,23 @@ type DailyStatsEntry = {
   body_battery_drained: number;
 };
 
+type SportActivityEntry = {
+  activity_date: string;
+  total_time_sec: number;
+  avg_heart_rate_bpm: number;
+  max_heart_rate_bpm: number;
+  aerobic_training_effect: number;
+  anaerobic_training_effect: number;
+  resting_calories: number;
+  active_calories: number;
+  total_calories: number;
+  estimated_sweat_loss_ml: number;
+  avg_time_per_set_sec: number;
+  moderate_minutes: number;
+  vigorous_minutes: number;
+  total_intensity_minutes: number;
+};
+
 type FoodLogEntry = {
   id: string;
   entry_date: string;
@@ -88,6 +105,7 @@ export type CoachContext = {
   sleep: SleepEntry[];
   runs: RunEntry[];
   daily_stats: DailyStatsEntry[];
+  sport_activities: SportActivityEntry[];
   food_logs: FoodLogEntry[];
   workouts: WorkoutEntry[];
   summaries: {
@@ -96,6 +114,8 @@ export type CoachContext = {
     average_protein_g: number | null;
     total_run_distance_km: number;
     run_count: number;
+    sport_activity_count: number;
+    average_activity_heart_rate: number | null;
     workout_count: number;
     average_steps: number | null;
   };
@@ -125,7 +145,7 @@ export async function buildCoachContextForDays(
   const user = await ensureUser(telegramUserId);
   const startDate = isoDateDaysAgo(windowDays - 1);
 
-  const [macros, sleep, runs, dailyStats, foodLogs, workouts] =
+  const [macros, sleep, runs, dailyStats, sportActivities, foodLogs, workouts] =
     await Promise.all([
       supabaseRequest<MacrosEntry[]>(
         `healthifyme_macros_entries?select=entry_date,consumed_calories,protein_consumed_g,carbs_consumed_g,fats_consumed_g,fibre_consumed_g&user_id=eq.${user.id}&entry_date=gte.${startDate}&order=entry_date.desc`,
@@ -141,6 +161,10 @@ export async function buildCoachContextForDays(
       ),
       supabaseRequest<DailyStatsEntry[]>(
         `garmin_daily_stats_entries?select=entry_date,steps,sleep_duration_sec,calories_burned,resting_bpm,high_bpm,body_battery_gained,body_battery_drained&user_id=eq.${user.id}&entry_date=gte.${startDate}&order=entry_date.desc`,
+        { method: "GET" },
+      ),
+      supabaseRequest<SportActivityEntry[]>(
+        `garmin_sport_activity_entries?select=activity_date,total_time_sec,avg_heart_rate_bpm,max_heart_rate_bpm,aerobic_training_effect,anaerobic_training_effect,resting_calories,active_calories,total_calories,estimated_sweat_loss_ml,avg_time_per_set_sec,moderate_minutes,vigorous_minutes,total_intensity_minutes&user_id=eq.${user.id}&activity_date=gte.${startDate}&order=activity_date.desc,created_at.desc`,
         { method: "GET" },
       ),
       supabaseRequest<FoodLogEntry[]>(
@@ -169,6 +193,7 @@ export async function buildCoachContextForDays(
     sleep,
     runs,
     daily_stats: dailyStats,
+    sport_activities: sportActivities,
     food_logs: foodLogs,
     workouts,
     summaries: {
@@ -181,6 +206,10 @@ export async function buildCoachContextForDays(
       average_protein_g: average(macros.map((entry) => entry.protein_consumed_g)),
       total_run_distance_km: totalRunDistanceKm,
       run_count: runs.length,
+      sport_activity_count: sportActivities.length,
+      average_activity_heart_rate: average(
+        sportActivities.map((entry) => entry.avg_heart_rate_bpm),
+      ),
       workout_count: workouts.length,
       average_steps: average(dailyStats.map((entry) => entry.steps)),
     },

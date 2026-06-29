@@ -8,7 +8,8 @@ export type ScreenshotType =
   | "healthifyme_food_log"
   | "garmin_run"
   | "garmin_daily_stats"
-  | "hevy_workout";
+  | "hevy_workout"
+  | "garmin_sport_activity";
 
 export interface WizardSession extends Scenes.WizardSessionData {
   date?: string | undefined;
@@ -301,6 +302,64 @@ export const garminDailyStatsSchema = z.object({
       .describe(
         "Body Battery drained during the day. Extract the negative value magnitude from '+79 / -82'. Return as a positive number.",
       ),
+  }),
+});
+
+export const garminSportActivitySchema = z.object({
+  screenshot_type: z.literal("garmin_sport_activity"),
+
+  timing: z.object({
+    total_time_sec: z
+      .number()
+      .describe(
+        "Total activity time converted to seconds. Example: '1:04:01' -> 3841 seconds.",
+      ),
+  }),
+
+  heart_rate: z.object({
+    avg_heart_rate_bpm: z
+      .number()
+      .describe("Average heart rate in beats per minute."),
+
+    max_heart_rate_bpm: z
+      .number()
+      .describe("Maximum heart rate in beats per minute."),
+  }),
+
+  training_effect: z.object({
+    aerobic: z.number().describe("Aerobic training effect score from Garmin."),
+
+    anaerobic: z
+      .number()
+      .describe("Anaerobic training effect score from Garmin."),
+  }),
+
+  nutrition_hydration: z.object({
+    resting_calories: z.number().describe("Resting calories burned."),
+
+    active_calories: z.number().describe("Active calories burned."),
+
+    total_calories: z.number().describe("Total calories burned."),
+
+    estimated_sweat_loss_ml: z
+      .number()
+      .describe("Estimated sweat loss in milliliters."),
+  }),
+
+  workout_details: z.object({
+    avg_time_per_set_sec: z
+      .number()
+      .describe(
+        "Average time per set converted to seconds. Example: '0:00' -> 0 seconds.",
+      ),
+  }),
+
+  intensity_minutes: z.object({
+    moderate_minutes: z.number().describe("Moderate intensity minutes."),
+
+    vigorous_minutes: z.number().describe("Vigorous intensity minutes."),
+
+    total_minutes: z.number().describe("Total intensity minutes."),
   }),
 });
 

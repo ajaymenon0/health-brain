@@ -4,6 +4,7 @@ import {
   garminDailyStatsSchema,
   garminRunSchema,
   garminSleepSchema,
+  garminSportActivitySchema,
   healthifyMeFoodLogSchema,
   healthifyMeMacrosSchema,
   hevyWorkoutSchema,
@@ -23,6 +24,7 @@ const screenshotTypeToSchema: Record<ScreenshotType, z.ZodObject<any>> = {
   garmin_run: garminRunSchema,
   garmin_daily_stats: garminDailyStatsSchema,
   healthifyme_food_log: healthifyMeFoodLogSchema,
+  garmin_sport_activity: garminSportActivitySchema,
 };
 
 const screenshotTypeValues = [
@@ -32,6 +34,7 @@ const screenshotTypeValues = [
   "garmin_run",
   "garmin_daily_stats",
   "hevy_workout",
+  "garmin_sport_activity",
 ] as const;
 
 const screenshotTypeClassificationSchema = z.object({
@@ -59,6 +62,7 @@ export async function classifyScreenshotType(
               - garmin_run
               - garmin_daily_stats
               - hevy_workout
+              - garmin_sport_activity
             `,
           },
           {

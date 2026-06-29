@@ -2,6 +2,7 @@ import {
   garminDailyStatsSchema,
   garminRunSchema,
   garminSleepSchema,
+  garminSportActivitySchema,
   healthifyMeFoodLogSchema,
   healthifyMeMacrosSchema,
   hevyWorkoutSchema,
@@ -24,6 +25,7 @@ const screenshotTypeToSchema = {
   garmin_daily_stats: garminDailyStatsSchema,
   healthifyme_food_log: healthifyMeFoodLogSchema,
   hevy_workout: hevyWorkoutSchema,
+  garmin_sport_activity: garminSportActivitySchema,
 } satisfies Record<ScreenshotType, z.ZodTypeAny>;
 
 async function persistHealthifyMeMacros(
@@ -182,6 +184,42 @@ async function persistGarminDailyStats(
       ]),
     },
   );
+}
+
+async function persistGarminSportActivity(
+  userId: string,
+  entryDate: string,
+  parsedResult: string,
+) {
+  const parsed = garminSportActivitySchema.parse(JSON.parse(parsedResult));
+
+  await supabaseRequest("garmin_sport_activity_entries", {
+    method: "POST",
+    headers: {
+      Prefer: "return=minimal",
+    },
+    body: JSON.stringify([
+      {
+        user_id: userId,
+        activity_date: entryDate,
+        screenshot_type: parsed.screenshot_type,
+        total_time_sec: parsed.timing.total_time_sec,
+        avg_heart_rate_bpm: parsed.heart_rate.avg_heart_rate_bpm,
+        max_heart_rate_bpm: parsed.heart_rate.max_heart_rate_bpm,
+        aerobic_training_effect: parsed.training_effect.aerobic,
+        anaerobic_training_effect: parsed.training_effect.anaerobic,
+        resting_calories: parsed.nutrition_hydration.resting_calories,
+        active_calories: parsed.nutrition_hydration.active_calories,
+        total_calories: parsed.nutrition_hydration.total_calories,
+        estimated_sweat_loss_ml:
+          parsed.nutrition_hydration.estimated_sweat_loss_ml,
+        avg_time_per_set_sec: parsed.workout_details.avg_time_per_set_sec,
+        moderate_minutes: parsed.intensity_minutes.moderate_minutes,
+        vigorous_minutes: parsed.intensity_minutes.vigorous_minutes,
+        total_intensity_minutes: parsed.intensity_minutes.total_minutes,
+      },
+    ]),
+  });
 }
 
 async function persistHealthifyMeFoodLog(
@@ -374,6 +412,11 @@ export async function persistParsedScreenshot({
 
   if (screenshotType === "healthifyme_food_log") {
     await persistHealthifyMeFoodLog(user.id, isoDate, parsedResult);
+    return;
+  }
+
+  if (screenshotType === "garmin_sport_activity") {
+    await persistGarminSportActivity(user.id, isoDate, parsedResult);
     return;
   }
 

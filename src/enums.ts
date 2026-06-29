@@ -25,6 +25,10 @@ export const SCREENSHOT_TYPES = [
     label: "Hevy Workout",
     value: "hevy_workout",
   },
+  {
+    label: "Sport/Activity",
+    value: "garmin_sport_activity",
+  },
 ] as const satisfies ReadonlyArray<{
   label: string;
   value: ScreenshotType;

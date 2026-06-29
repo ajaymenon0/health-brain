@@ -231,6 +231,8 @@ export function formatCoachContextDump(context: CoachContext): string {
     `- Average protein: ${context.summaries.average_protein_g ?? "No data"} g`,
     `- Total run distance: ${context.summaries.total_run_distance_km} km`,
     `- Run count: ${context.summaries.run_count}`,
+    `- Sport/activity count: ${context.summaries.sport_activity_count}`,
+    `- Average sport/activity heart rate: ${context.summaries.average_activity_heart_rate ?? "No data"}`,
     `- Workout count: ${context.summaries.workout_count}`,
     `- Average daily steps: ${context.summaries.average_steps ?? "No data"}`,
     "",
@@ -282,6 +284,18 @@ export function formatCoachContextDump(context: CoachContext): string {
     for (const stats of context.daily_stats.slice(0, 10)) {
       lines.push(
         `- ${stats.entry_date}: ${stats.steps} steps, ${stats.calories_burned} calories burned, resting BPM ${stats.resting_bpm}, high BPM ${stats.high_bpm}, body battery +${stats.body_battery_gained}/-${stats.body_battery_drained}`,
+      );
+    }
+  }
+
+  lines.push("", "Recent Sport/Activity");
+
+  if (context.sport_activities.length === 0) {
+    lines.push("- No sport/activity entries logged");
+  } else {
+    for (const activity of context.sport_activities.slice(0, 10)) {
+      lines.push(
+        `- ${activity.activity_date}: ${formatDurationSeconds(activity.total_time_sec)}, avg HR ${activity.avg_heart_rate_bpm}, max HR ${activity.max_heart_rate_bpm}, calories ${activity.total_calories}, training effect ${activity.aerobic_training_effect}/${activity.anaerobic_training_effect}, intensity ${activity.total_intensity_minutes} min`,
       );
     }
   }
