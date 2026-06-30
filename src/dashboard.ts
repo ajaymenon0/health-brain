@@ -201,9 +201,9 @@ export async function fetchDashboardData(
       `hevy_workout_entries?select=workout_date,workout_name,duration_sec,total_volume_kg,exercise_count&user_id=eq.${uid}&order=workout_date.desc,created_at.desc${lim}`,
       { method: "GET" },
     ),
-    // all sleep durations for average
+    // sleep durations for average (within selected period)
     supabaseRequest<Array<{ sleep_duration_minutes: number }>>(
-      `garmin_sleep_entries?select=sleep_duration_minutes&user_id=eq.${uid}`,
+      `garmin_sleep_entries?select=sleep_duration_minutes&user_id=eq.${uid}&order=sleep_date.desc${lim}`,
       { method: "GET" },
     ),
     // single entry with lowest resting HR
@@ -224,7 +224,7 @@ export async function fetchDashboardData(
       { method: "GET" },
     ),
     supabaseRequest<Array<{ steps: number }>>(
-      `garmin_daily_stats_entries?select=steps&user_id=eq.${uid}`,
+      `garmin_daily_stats_entries?select=steps&user_id=eq.${uid}&order=entry_date.desc${lim}`,
       { method: "GET" },
     ),
     supabaseRequest<Array<{ steps: number }>>(
@@ -232,7 +232,7 @@ export async function fetchDashboardData(
       { method: "GET" },
     ),
     supabaseRequest<Array<{ consumed_calories: number; protein_consumed_g: number }>>(
-      `healthifyme_macros_entries?select=consumed_calories,protein_consumed_g&user_id=eq.${uid}`,
+      `healthifyme_macros_entries?select=consumed_calories,protein_consumed_g&user_id=eq.${uid}&order=entry_date.desc${lim}`,
       { method: "GET" },
     ),
   ]);

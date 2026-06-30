@@ -62,7 +62,7 @@ export function DailyStatsSection({ data, view, onViewChange, stats }: Props) {
       <SectionHeader title="Daily Statistics" view={view} onViewChange={onViewChange} />
       <StatCards>
         <StatCard
-          title="Avg Steps (All Time)"
+          title="Avg Steps"
           value={stats.avgStepsAllTime !== null ? stats.avgStepsAllTime.toLocaleString() : "—"}
           icon={<Activity size={20} />}
           iconColor="#2563eb"
