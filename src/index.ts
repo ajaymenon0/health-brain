@@ -478,7 +478,7 @@ bot.on(message("photo"), async (ctx, next) => {
 });
 
 startServer();
-bot.launch();
+bot.launch({ dropPendingUpdates: true });
 
 process.once("SIGINT", () => bot.stop("SIGINT"));
 process.once("SIGTERM", () => bot.stop("SIGTERM"));
