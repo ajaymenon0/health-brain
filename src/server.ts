@@ -2,8 +2,9 @@ import http from "http";
 import fs from "fs";
 import path from "path";
 import config from "./config";
-import { publicDir } from "./generate";
 import { fetchDashboardData } from "./dashboard";
+
+const publicDir = path.join(process.cwd(), "public");
 
 const MIME: Record<string, string> = {
   ".html": "text/html; charset=utf-8",
@@ -58,7 +59,7 @@ function handleStatic(urlPath: string, res: http.ServerResponse): void {
         if (indexErr) {
           res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
           res.end(
-            `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Health Dashboard</title></head><body style="font-family:sans-serif;padding:2rem"><p>No dashboard built yet. Send <code>/generate</code> in the Telegram bot.</p></body></html>`,
+            `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Health Brain</title></head><body style="font-family:sans-serif;padding:2rem"><p>Dashboard not built yet. Run <code>npm run build</code> in the <code>frontend/</code> directory.</p></body></html>`,
           );
           return;
         }

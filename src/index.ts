@@ -21,7 +21,6 @@ import {
   isScreenshotType,
   splitMessage,
 } from "./utils";
-import { generateDashboard } from "./generate";
 import { startServer } from "./server";
 
 const bot = new Telegraf<BotContext>(config.telegram.token);
@@ -459,24 +458,6 @@ bot.command("dump", async (ctx) => {
     await ctx.reply(
       "I couldn't prepare the 30-day context dump from Supabase. Please try again.",
     );
-  }
-});
-
-bot.command("generate", async (ctx) => {
-  if (!ctx.from) {
-    await ctx.reply("Could not identify your Telegram user.");
-    return;
-  }
-
-  await ctx.reply("Generating dashboard...");
-
-  try {
-    await generateDashboard();
-    const url = process.env["RENDER_EXTERNAL_URL"];
-    await ctx.reply(url ? `Dashboard ready: ${url}` : "Dashboard has been rebuilt.");
-  } catch (error) {
-    console.error("Failed to generate dashboard:", error);
-    await ctx.reply("Dashboard generation failed. Check server logs.");
   }
 });
 
