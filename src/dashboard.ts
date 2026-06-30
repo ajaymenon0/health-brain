@@ -163,15 +163,12 @@ export async function fetchDashboardData(
     macros,
     foodLogs,
     workouts,
-    // stats queries
-    allSleepDurations,
+    // fixed-window stats (not period-bounded)
     lowestHREntry,
     runsThisWeek,
     runsThisMonth,
     runsThisYear,
-    allSteps,
     stepsThisWeek,
-    allMacros,
   ] = await Promise.all([
     supabaseRequest<SleepRow[]>(
       `garmin_sleep_entries?select=sleep_date,sleep_duration_minutes,deep_sleep_minutes,light_sleep_minutes,rem_sleep_minutes,awake_duration_minutes,resting_heart_rate,body_battery_charge&user_id=eq.${uid}&order=sleep_date.desc${lim}`,
@@ -201,12 +198,7 @@ export async function fetchDashboardData(
       `hevy_workout_entries?select=workout_date,workout_name,duration_sec,total_volume_kg,exercise_count&user_id=eq.${uid}&order=workout_date.desc,created_at.desc${lim}`,
       { method: "GET" },
     ),
-    // sleep durations for average (within selected period)
-    supabaseRequest<Array<{ sleep_duration_minutes: number }>>(
-      `garmin_sleep_entries?select=sleep_duration_minutes&user_id=eq.${uid}&order=sleep_date.desc${lim}`,
-      { method: "GET" },
-    ),
-    // single entry with lowest resting HR
+    // all-time lowest resting HR
     supabaseRequest<Array<{ resting_heart_rate: number; sleep_date: string }>>(
       `garmin_sleep_entries?select=resting_heart_rate,sleep_date&user_id=eq.${uid}&order=resting_heart_rate.asc&limit=1`,
       { method: "GET" },
@@ -224,24 +216,17 @@ export async function fetchDashboardData(
       { method: "GET" },
     ),
     supabaseRequest<Array<{ steps: number }>>(
-      `garmin_daily_stats_entries?select=steps&user_id=eq.${uid}&order=entry_date.desc${lim}`,
-      { method: "GET" },
-    ),
-    supabaseRequest<Array<{ steps: number }>>(
       `garmin_daily_stats_entries?select=steps&user_id=eq.${uid}&entry_date=gte.${weekStart}`,
-      { method: "GET" },
-    ),
-    supabaseRequest<Array<{ consumed_calories: number; protein_consumed_g: number }>>(
-      `healthifyme_macros_entries?select=consumed_calories,protein_consumed_g&user_id=eq.${uid}&order=entry_date.desc${lim}`,
       { method: "GET" },
     ),
   ]);
 
   const lowestHR = lowestHREntry[0];
 
+  // Period-bounded stats derived directly from the display data
   const stats: DashboardStats = {
     sleep: {
-      avgDurationMinutes: avg(allSleepDurations.map((r) => r.sleep_duration_minutes)),
+      avgDurationMinutes: avg(sleep.map((r) => r.sleep_duration_minutes)),
       lowestRestingHR: lowestHR
         ? { bpm: lowestHR.resting_heart_rate, date: lowestHR.sleep_date }
         : null,
@@ -252,12 +237,12 @@ export async function fetchDashboardData(
       distanceThisYearKm: runDistanceKm(runsThisYear),
     },
     dailyStats: {
-      avgStepsAllTime: avg(allSteps.map((r) => r.steps)),
+      avgStepsAllTime: avg(dailyStats.map((r) => r.steps)),
       avgStepsThisWeek: avg(stepsThisWeek.map((r) => r.steps)),
     },
     macros: {
-      avgConsumedCalories: avg(allMacros.map((r) => r.consumed_calories)),
-      avgConsumedProteinG: avg(allMacros.map((r) => r.protein_consumed_g)),
+      avgConsumedCalories: avg(macros.map((r) => r.consumed_calories)),
+      avgConsumedProteinG: avg(macros.map((r) => r.protein_consumed_g)),
     },
   };
 
