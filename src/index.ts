@@ -21,6 +21,8 @@ import {
   isScreenshotType,
   splitMessage,
 } from "./utils";
+import { generateDashboard } from "./generate";
+import { startServer } from "./server";
 
 const bot = new Telegraf<BotContext>(config.telegram.token);
 type SaveChoice = "save_yes" | "save_no";
@@ -460,6 +462,24 @@ bot.command("dump", async (ctx) => {
   }
 });
 
+bot.command("generate", async (ctx) => {
+  if (!ctx.from) {
+    await ctx.reply("Could not identify your Telegram user.");
+    return;
+  }
+
+  await ctx.reply("Generating dashboard...");
+
+  try {
+    await generateDashboard(ctx.from.id);
+    const url = process.env["RENDER_EXTERNAL_URL"];
+    await ctx.reply(url ? `Dashboard ready: ${url}` : "Dashboard has been regenerated.");
+  } catch (error) {
+    console.error("Failed to generate dashboard:", error);
+    await ctx.reply("Dashboard generation failed. Check server logs.");
+  }
+});
+
 bot.on(message("photo"), async (ctx, next) => {
   if (ctx.scene.current?.id === "screenshot-wizard") {
     return next();
@@ -476,6 +496,7 @@ bot.on(message("photo"), async (ctx, next) => {
   });
 });
 
+startServer();
 bot.launch();
 
 process.once("SIGINT", () => bot.stop("SIGINT"));
