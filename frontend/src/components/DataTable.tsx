@@ -1,11 +1,18 @@
+import type { ReactNode } from "react";
+
 type Props = {
   headers: string[];
-  rows: string[][];
+  rows: ReactNode[][];
+  rowClassNames?: (string | undefined)[];
 };
 
-export function DataTable({ headers, rows }: Props) {
+export function DataTable({ headers, rows, rowClassNames }: Props) {
   if (rows.length === 0) {
-    return <p className="no-data">No records found.</p>;
+    return (
+      <div className="table-wrap">
+        <p className="no-data">No records found.</p>
+      </div>
+    );
   }
 
   return (
@@ -20,7 +27,7 @@ export function DataTable({ headers, rows }: Props) {
         </thead>
         <tbody>
           {rows.map((row, i) => (
-            <tr key={i}>
+            <tr key={i} className={rowClassNames?.[i] ?? ""}>
               {row.map((cell, j) => (
                 <td key={j}>{cell}</td>
               ))}
@@ -28,6 +35,7 @@ export function DataTable({ headers, rows }: Props) {
           ))}
         </tbody>
       </table>
+      <div className="table-footer">Showing {rows.length} records</div>
     </div>
   );
 }

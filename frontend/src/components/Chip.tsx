@@ -1,19 +1,36 @@
-type ChipProps = {
+import type { ReactNode } from "react";
+
+type StatCardProps = {
   title: string;
   value: string;
+  unit?: string;
   sub?: string;
+  icon?: ReactNode;
+  iconColor?: string;
 };
 
-export function Chip({ title, value, sub }: ChipProps) {
+export function StatCard({ title, value, unit, sub, icon, iconColor = "#6b7280" }: StatCardProps) {
   return (
-    <div className="chip">
-      <div className="chip-title">{title}</div>
-      <div className="chip-value">{value}</div>
-      {sub && <div className="chip-sub">{sub}</div>}
+    <div className="stat-card">
+      <div className="stat-card-header">
+        <span className="stat-card-label">{title}</span>
+        {icon && (
+          <span className="stat-card-icon" style={{ color: iconColor }}>
+            {icon}
+          </span>
+        )}
+      </div>
+      <div className="stat-card-value">
+        {value}
+        {unit && <span className="stat-card-unit"> {unit}</span>}
+      </div>
+      {sub && <div className="stat-card-sub">{sub}</div>}
     </div>
   );
 }
 
-export function ChipRow({ children }: { children: React.ReactNode }) {
-  return <div className="chip-row">{children}</div>;
+export function StatCards({ children }: { children: ReactNode }) {
+  return <div className="stat-cards">{children}</div>;
 }
+
+export { StatCard as Chip, StatCards as ChipRow };

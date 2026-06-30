@@ -32,3 +32,9 @@ export function fmtPace(secPerKm: number): string {
 export function fmtNum(n: number, decimals = 1): string {
   return n.toFixed(decimals);
 }
+
+export function isWeekend(isoDate: string): boolean {
+  const [y, mo, d] = isoDate.split("-").map(Number);
+  const dow = new Date(Date.UTC(y!, mo! - 1, d!)).getUTCDay();
+  return dow === 0 || dow === 6;
+}

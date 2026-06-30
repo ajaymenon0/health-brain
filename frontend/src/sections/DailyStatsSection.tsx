@@ -1,9 +1,11 @@
+import { Activity } from "lucide-react";
 import { DataTable } from "../components/DataTable";
 import { EChart, C, TOOLTIP, LEGEND, GRID } from "../components/EChart";
-import { Chip, ChipRow } from "../components/Chip";
+import { StatCard, StatCards } from "../components/Chip";
+import { SectionHeader } from "../components/SectionHeader";
 import type { View } from "../App";
 import type { DailyStatsRow, DashboardStats } from "../types";
-import { fmtDate } from "../utils";
+import { fmtDate, isWeekend } from "../utils";
 
 function DailyStatsChart({ data }: { data: DailyStatsRow[] }) {
   const rows = [...data].reverse();
@@ -37,7 +39,14 @@ function DailyStatsChart({ data }: { data: DailyStatsRow[] }) {
   return <EChart option={option} />;
 }
 
-export function DailyStatsSection({ data, view, stats }: { data: DailyStatsRow[]; view: View; stats: DashboardStats["dailyStats"] }) {
+type Props = {
+  data: DailyStatsRow[];
+  view: View;
+  onViewChange: (v: View) => void;
+  stats: DashboardStats["dailyStats"];
+};
+
+export function DailyStatsSection({ data, view, onViewChange, stats }: Props) {
   const headers = ["Date", "Steps", "Calories Burned", "Resting BPM", "High BPM", "Body Battery"];
   const rows = data.map((r) => [
     fmtDate(r.entry_date),
@@ -49,19 +58,27 @@ export function DailyStatsSection({ data, view, stats }: { data: DailyStatsRow[]
   ]);
 
   return (
-    <section id="daily-stats">
-      <h2>Daily Stats</h2>
-      <ChipRow>
-        <Chip
+    <section>
+      <SectionHeader title="Daily Statistics" view={view} onViewChange={onViewChange} />
+      <StatCards>
+        <StatCard
           title="Avg Steps (All Time)"
           value={stats.avgStepsAllTime !== null ? stats.avgStepsAllTime.toLocaleString() : "—"}
+          icon={<Activity size={20} />}
+          iconColor="#2563eb"
         />
-        <Chip
+        <StatCard
           title="Avg Steps (This Week)"
           value={stats.avgStepsThisWeek !== null ? stats.avgStepsThisWeek.toLocaleString() : "—"}
+          icon={<Activity size={20} />}
+          iconColor="#7c3aed"
         />
-      </ChipRow>
-      {view === "table" ? <DataTable headers={headers} rows={rows} /> : <DailyStatsChart data={data} />}
+      </StatCards>
+      {view === "table" ? (
+        <DataTable headers={headers} rows={rows} rowClassNames={data.map((r) => isWeekend(r.entry_date) ? "row-weekend" : undefined)} />
+      ) : (
+        <DailyStatsChart data={data} />
+      )}
     </section>
   );
 }

@@ -1,9 +1,11 @@
+import { MapPin } from "lucide-react";
 import { DataTable } from "../components/DataTable";
 import { EChart, C, TOOLTIP, LEGEND, GRID } from "../components/EChart";
-import { Chip, ChipRow } from "../components/Chip";
+import { StatCard, StatCards } from "../components/Chip";
+import { SectionHeader } from "../components/SectionHeader";
 import type { View } from "../App";
 import type { DashboardStats, RunRow } from "../types";
-import { fmtDate, fmtDurSecs, fmtNum, fmtPace } from "../utils";
+import { fmtDate, fmtDurSecs, fmtNum, fmtPace, isWeekend } from "../utils";
 
 function RunsChart({ data }: { data: RunRow[] }) {
   const rows = [...data].reverse();
@@ -31,13 +33,7 @@ function RunsChart({ data }: { data: RunRow[] }) {
     xAxis: { type: "category", data: dates, axisLabel: { fontSize: 11 } },
     yAxis: [
       { type: "value", name: "km", nameTextStyle: { color: C.blue, fontSize: 11 }, axisLabel: { fontSize: 11 } },
-      {
-        type: "value",
-        name: "min/km",
-        nameTextStyle: { color: C.orange, fontSize: 11 },
-        axisLabel: { fontSize: 11, color: C.orange },
-        inverse: true,
-      },
+      { type: "value", name: "min/km", nameTextStyle: { color: C.orange, fontSize: 11 }, axisLabel: { fontSize: 11, color: C.orange }, inverse: true },
     ],
     series: [
       { name: "Distance", type: "bar", data: distances, color: C.blue, barMaxWidth: 40, borderRadius: [3, 3, 0, 0] },
@@ -48,7 +44,14 @@ function RunsChart({ data }: { data: RunRow[] }) {
   return <EChart option={option} />;
 }
 
-export function RunsSection({ data, view, stats }: { data: RunRow[]; view: View; stats: DashboardStats["runs"] }) {
+type Props = {
+  data: RunRow[];
+  view: View;
+  onViewChange: (v: View) => void;
+  stats: DashboardStats["runs"];
+};
+
+export function RunsSection({ data, view, onViewChange, stats }: Props) {
   const headers = ["Date", "Distance", "Avg Pace", "Duration", "Avg HR", "Calories", "Aerobic TE"];
   const rows = data.map((r) => {
     const distKm = ((r.total_time_sec / 3600) * r.avg_speed_kmh).toFixed(2);
@@ -64,14 +67,36 @@ export function RunsSection({ data, view, stats }: { data: RunRow[]; view: View;
   });
 
   return (
-    <section id="runs">
-      <h2>Runs</h2>
-      <ChipRow>
-        <Chip title="This Week" value={`${stats.distanceThisWeekKm} km`} />
-        <Chip title="This Month" value={`${stats.distanceThisMonthKm} km`} />
-        <Chip title="This Year" value={`${stats.distanceThisYearKm} km`} />
-      </ChipRow>
-      {view === "table" ? <DataTable headers={headers} rows={rows} /> : <RunsChart data={data} />}
+    <section>
+      <SectionHeader title="Run Performance" view={view} onViewChange={onViewChange} />
+      <StatCards>
+        <StatCard
+          title="Distance This Week"
+          value={String(stats.distanceThisWeekKm)}
+          unit="km"
+          icon={<MapPin size={20} />}
+          iconColor="#2563eb"
+        />
+        <StatCard
+          title="Distance This Month"
+          value={String(stats.distanceThisMonthKm)}
+          unit="km"
+          icon={<MapPin size={20} />}
+          iconColor="#7c3aed"
+        />
+        <StatCard
+          title="Distance This Year"
+          value={String(stats.distanceThisYearKm)}
+          unit="km"
+          icon={<MapPin size={20} />}
+          iconColor="#0ea5e9"
+        />
+      </StatCards>
+      {view === "table" ? (
+        <DataTable headers={headers} rows={rows} rowClassNames={data.map((r) => isWeekend(r.run_date) ? "row-weekend" : undefined)} />
+      ) : (
+        <RunsChart data={data} />
+      )}
     </section>
   );
 }

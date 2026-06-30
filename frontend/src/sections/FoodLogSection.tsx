@@ -1,8 +1,9 @@
 import { DataTable } from "../components/DataTable";
 import { EChart, C, TOOLTIP, LEGEND, GRID } from "../components/EChart";
+import { SectionHeader } from "../components/SectionHeader";
 import type { View } from "../App";
 import type { FoodLogRow } from "../types";
-import { fmtDate } from "../utils";
+import { fmtDate, isWeekend } from "../utils";
 
 const MEAL_ORDER = ["breakfast", "lunch", "evening_snack", "dinner"] as const;
 const MEAL_COLORS = [C.amber, C.orange, C.violet, C.teal];
@@ -36,7 +37,13 @@ function FoodLogChart({ data }: { data: FoodLogRow[] }) {
   return <EChart option={option} />;
 }
 
-export function FoodLogSection({ data, view }: { data: FoodLogRow[]; view: View }) {
+type Props = {
+  data: FoodLogRow[];
+  view: View;
+  onViewChange: (v: View) => void;
+};
+
+export function FoodLogSection({ data, view, onViewChange }: Props) {
   const headers = ["Date", "Breakfast", "Lunch", "Evening Snack", "Dinner", "Total"];
   const rows = data.map((r) => {
     const meals = r.healthifyme_food_log_meals ?? [];
@@ -50,9 +57,13 @@ export function FoodLogSection({ data, view }: { data: FoodLogRow[]; view: View 
   });
 
   return (
-    <section id="food-log">
-      <h2>Food Log</h2>
-      {view === "table" ? <DataTable headers={headers} rows={rows} /> : <FoodLogChart data={data} />}
+    <section>
+      <SectionHeader title="Food Log" view={view} onViewChange={onViewChange} />
+      {view === "table" ? (
+        <DataTable headers={headers} rows={rows} rowClassNames={data.map((r) => isWeekend(r.entry_date) ? "row-weekend" : undefined)} />
+      ) : (
+        <FoodLogChart data={data} />
+      )}
     </section>
   );
 }

@@ -1,8 +1,9 @@
 import { DataTable } from "../components/DataTable";
 import { EChart, C, TOOLTIP, LEGEND, GRID } from "../components/EChart";
+import { SectionHeader } from "../components/SectionHeader";
 import type { View } from "../App";
 import type { SportActivityRow } from "../types";
-import { fmtDate, fmtDurSecs, fmtNum } from "../utils";
+import { fmtDate, fmtDurSecs, fmtNum, isWeekend } from "../utils";
 
 function SportChart({ data }: { data: SportActivityRow[] }) {
   const rows = [...data].reverse();
@@ -26,7 +27,13 @@ function SportChart({ data }: { data: SportActivityRow[] }) {
   return <EChart option={option} />;
 }
 
-export function SportSection({ data, view }: { data: SportActivityRow[]; view: View }) {
+type Props = {
+  data: SportActivityRow[];
+  view: View;
+  onViewChange: (v: View) => void;
+};
+
+export function SportSection({ data, view, onViewChange }: Props) {
   const headers = ["Date", "Duration", "Avg HR", "Max HR", "Calories", "Aerobic TE", "Intensity"];
   const rows = data.map((r) => [
     fmtDate(r.activity_date),
@@ -39,9 +46,13 @@ export function SportSection({ data, view }: { data: SportActivityRow[]; view: V
   ]);
 
   return (
-    <section id="sport-activities">
-      <h2>Sport / Activities</h2>
-      {view === "table" ? <DataTable headers={headers} rows={rows} /> : <SportChart data={data} />}
+    <section>
+      <SectionHeader title="Sport & Activities" view={view} onViewChange={onViewChange} />
+      {view === "table" ? (
+        <DataTable headers={headers} rows={rows} rowClassNames={data.map((r) => isWeekend(r.activity_date) ? "row-weekend" : undefined)} />
+      ) : (
+        <SportChart data={data} />
+      )}
     </section>
   );
 }

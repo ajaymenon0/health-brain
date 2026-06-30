@@ -1,8 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
-import { BarChart2, Table } from "lucide-react";
+import { RefreshCw } from "lucide-react";
 import type { DashboardData } from "./types";
-
-export type View = "table" | "chart";
 import { SleepSection } from "./sections/SleepSection";
 import { RunsSection } from "./sections/RunsSection";
 import { DailyStatsSection } from "./sections/DailyStatsSection";
@@ -10,6 +8,8 @@ import { SportSection } from "./sections/SportSection";
 import { MacrosSection } from "./sections/MacrosSection";
 import { FoodLogSection } from "./sections/FoodLogSection";
 import { WorkoutsSection } from "./sections/WorkoutsSection";
+
+export type View = "table" | "chart";
 
 const TABS = [
   { id: "sleep", label: "Sleep" },
@@ -54,50 +54,65 @@ export function App() {
   return (
     <>
       <header>
-        <h1>Health Brain</h1>
-        <div className="header-meta">
-          <span className="muted">Updated {data.generatedAt}</span>
-          <button onClick={fetchData}>Refresh</button>
+        <span className="header-logo">Health Brain</span>
+        <nav className="header-tabs">
+          {TABS.map(({ id, label }) => (
+            <button
+              key={id}
+              className={`header-tab${activeTab === id ? " active" : ""}`}
+              onClick={() => setActiveTab(id)}
+            >
+              {label}
+            </button>
+          ))}
+        </nav>
+        <div className="header-sync">
+          <div className="sync-info">
+            <span className="sync-label">Last Sync</span>
+            <span className="sync-date">{data.generatedAt}</span>
+          </div>
+          <button className="refresh-btn" onClick={fetchData}>
+            <RefreshCw size={14} />
+            Refresh
+          </button>
         </div>
       </header>
-      <nav className="tabs">
+
+      <main>
+        {activeTab === "sleep" && (
+          <SleepSection data={data.sleep} view={view} onViewChange={setView} stats={data.stats.sleep} />
+        )}
+        {activeTab === "runs" && (
+          <RunsSection data={data.runs} view={view} onViewChange={setView} stats={data.stats.runs} />
+        )}
+        {activeTab === "daily-stats" && (
+          <DailyStatsSection data={data.dailyStats} view={view} onViewChange={setView} stats={data.stats.dailyStats} />
+        )}
+        {activeTab === "sport-activities" && (
+          <SportSection data={data.sportActivities} view={view} onViewChange={setView} />
+        )}
+        {activeTab === "macros" && (
+          <MacrosSection data={data.macros} view={view} onViewChange={setView} stats={data.stats.macros} />
+        )}
+        {activeTab === "food-log" && (
+          <FoodLogSection data={data.foodLogs} view={view} onViewChange={setView} />
+        )}
+        {activeTab === "workouts" && (
+          <WorkoutsSection data={data.workouts} view={view} onViewChange={setView} />
+        )}
+      </main>
+
+      <nav className="mobile-bottom-nav">
         {TABS.map(({ id, label }) => (
           <button
             key={id}
-            className={activeTab === id ? "tab active" : "tab"}
+            className={`mobile-tab${activeTab === id ? " active" : ""}`}
             onClick={() => setActiveTab(id)}
           >
             {label}
           </button>
         ))}
       </nav>
-      <div className="view-bar">
-        <div className="view-toggle">
-          <button
-            className={`toggle-btn ${view === "table" ? "active" : ""}`}
-            onClick={() => setView("table")}
-            title="Table view"
-          >
-            <Table size={15} />
-          </button>
-          <button
-            className={`toggle-btn ${view === "chart" ? "active" : ""}`}
-            onClick={() => setView("chart")}
-            title="Chart view"
-          >
-            <BarChart2 size={15} />
-          </button>
-        </div>
-      </div>
-      <main>
-        {activeTab === "sleep" && <SleepSection data={data.sleep} view={view} stats={data.stats.sleep} />}
-        {activeTab === "runs" && <RunsSection data={data.runs} view={view} stats={data.stats.runs} />}
-        {activeTab === "daily-stats" && <DailyStatsSection data={data.dailyStats} view={view} stats={data.stats.dailyStats} />}
-        {activeTab === "sport-activities" && <SportSection data={data.sportActivities} view={view} />}
-        {activeTab === "macros" && <MacrosSection data={data.macros} view={view} stats={data.stats.macros} />}
-        {activeTab === "food-log" && <FoodLogSection data={data.foodLogs} view={view} />}
-        {activeTab === "workouts" && <WorkoutsSection data={data.workouts} view={view} />}
-      </main>
     </>
   );
 }
