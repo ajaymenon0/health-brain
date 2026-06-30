@@ -5,12 +5,20 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Commands
 
 ```bash
+# Bot (project root)
 npm run dev    # run with hot reload (tsx watch)
 npm start      # run once (tsx)
-npm run build  # type-check only (tsc --noEmit); there is no compiled output used at runtime
+npm run build  # type-check only (tsc --noEmit); no compiled output — app runs via tsx
+
+# Frontend (frontend/)
+cd frontend
+npm run dev    # Vite dev server at http://localhost:5173 (proxies /api to localhost:3000)
+npm run build  # production build → ../public/ (also what /generate triggers on Render)
 ```
 
-There are no tests. The `build` script only validates types — the app always runs via `tsx` directly from `src/`.
+**Local dev workflow**: run both `npm run dev` (bot, port 3000) and `cd frontend && npm run dev` (Vite, port 5173) simultaneously. The Vite proxy forwards `/api` requests to the bot server so you get live data.
+
+There are no tests. The root `build` script only validates types.
 
 ## Environment variables
 
@@ -18,10 +26,18 @@ Required in `.env`:
 - `TELEGRAM_BOT_TOKEN` — Telegraf bot token
 - `OPENAI_API_KEY` — used for screenshot classification and parsing
 - `SUPABASE_URL` + `SUPABASE_SERVICE_ROLE_KEY` — required for any storage or coach context operations
+- `DASHBOARD_TELEGRAM_USER_ID` — Telegram user ID whose data `GET /api/data` returns
 
-Optional: `AI_MODEL` (defaults to `gpt-3.5-turbo`), `PORT`, `NODE_ENV`.
+Optional: `AI_MODEL` (defaults to `gpt-3.5-turbo`), `PORT` (default `3000`), `NODE_ENV`.
 
 Config is validated at startup via Zod in `src/config.ts`; missing required vars throw immediately.
+
+## Render deployment
+
+Build command: `npm install && cd frontend && npm install && npm run build`
+Start command: `npm start`
+
+The build compiles the React frontend to `public/` as part of each deploy. The `/generate` Telegram command re-runs the frontend build on demand (useful after frontend-only changes without a full redeploy).
 
 ## Architecture
 
@@ -47,6 +63,28 @@ This is a **Telegram bot** that lets users photograph health app screenshots, ex
 | `src/supabase.ts` | Thin `supabaseRequest` wrapper over `fetch` (no Supabase JS client); `ensureUser` upserts users by Telegram ID |
 | `src/enums.ts` | `SCREENSHOT_TYPES` array (labels + values) and choice sets used for validation |
 | `src/utils.ts` | Date formatting, HTML formatting for Telegram messages, `splitMessage` for long replies |
+| `src/dashboard.ts` | Shared data-fetching layer for the web dashboard; exports `fetchDashboardData` and all row types |
+| `src/server.ts` | HTTP server: serves `GET /api/data` (JSON from `dashboard.ts`) + static files from `public/` |
+| `src/generate.ts` | `/generate` implementation: shells out to `npm run build` in `frontend/` |
+
+### Frontend (`frontend/`)
+
+Vite + React SPA. In dev, proxies `/api` to the bot server (port 3000). Production build outputs to `../public/` which the bot's HTTP server serves.
+
+```
+frontend/src/
+  App.tsx              # root component; fetches /api/data, renders all sections
+  types.ts             # data types matching the /api/data response shape
+  utils.ts             # formatting helpers (duration, pace, numbers)
+  components/
+    DataTable.tsx      # reusable table — headers: string[], rows: string[][]
+  sections/            # one component per screenshot type
+    SleepSection.tsx   RunsSection.tsx   DailyStatsSection.tsx
+    SportSection.tsx   MacrosSection.tsx FoodLogSection.tsx
+    WorkoutsSection.tsx
+```
+
+Adding a chart to a section: import a chart library in the section component alongside `DataTable`. The data is already available as typed props — no other changes needed.
 
 ### Supabase access pattern
 

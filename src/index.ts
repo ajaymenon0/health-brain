@@ -471,9 +471,9 @@ bot.command("generate", async (ctx) => {
   await ctx.reply("Generating dashboard...");
 
   try {
-    await generateDashboard(ctx.from.id);
+    await generateDashboard();
     const url = process.env["RENDER_EXTERNAL_URL"];
-    await ctx.reply(url ? `Dashboard ready: ${url}` : "Dashboard has been regenerated.");
+    await ctx.reply(url ? `Dashboard ready: ${url}` : "Dashboard has been rebuilt.");
   } catch (error) {
     console.error("Failed to generate dashboard:", error);
     await ctx.reply("Dashboard generation failed. Check server logs.");

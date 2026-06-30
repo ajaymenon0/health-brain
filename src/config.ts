@@ -12,6 +12,8 @@ const schema = z.object({
   PORT: z.string().default("3000"),
   NODE_ENV: z.enum(["development", "production"]).default("development"),
   AI_MODEL: z.string().default("gpt-3.5-turbo"),
+  // Telegram user ID whose data the dashboard API returns
+  DASHBOARD_TELEGRAM_USER_ID: z.coerce.number().int().optional(),
 });
 
 const env = schema.parse(process.env);
@@ -38,6 +40,10 @@ const config = {
   server: {
     port: Number(env.PORT),
     env: env.NODE_ENV,
+  },
+
+  dashboard: {
+    telegramUserId: env.DASHBOARD_TELEGRAM_USER_ID,
   },
 };
 
