@@ -163,8 +163,7 @@ export async function fetchDashboardData(
     macros,
     foodLogs,
     workouts,
-    // fixed-window stats (not period-bounded)
-    lowestHREntry,
+    // fixed-window stats
     runsThisWeek,
     runsThisMonth,
     runsThisYear,
@@ -198,11 +197,6 @@ export async function fetchDashboardData(
       `hevy_workout_entries?select=workout_date,workout_name,duration_sec,total_volume_kg,exercise_count&user_id=eq.${uid}&order=workout_date.desc,created_at.desc${lim}`,
       { method: "GET" },
     ),
-    // all-time lowest resting HR
-    supabaseRequest<Array<{ resting_heart_rate: number; sleep_date: string }>>(
-      `garmin_sleep_entries?select=resting_heart_rate,sleep_date&user_id=eq.${uid}&order=resting_heart_rate.asc&limit=1`,
-      { method: "GET" },
-    ),
     supabaseRequest<Array<{ total_time_sec: number; avg_speed_kmh: number }>>(
       `garmin_run_entries?select=total_time_sec,avg_speed_kmh&user_id=eq.${uid}&run_date=gte.${weekStart}`,
       { method: "GET" },
@@ -221,14 +215,17 @@ export async function fetchDashboardData(
     ),
   ]);
 
-  const lowestHR = lowestHREntry[0];
+  const lowestHRRow = sleep.reduce<SleepRow | null>(
+    (min, r) => (min === null || r.resting_heart_rate < min.resting_heart_rate ? r : min),
+    null,
+  );
 
   // Period-bounded stats derived directly from the display data
   const stats: DashboardStats = {
     sleep: {
       avgDurationMinutes: avg(sleep.map((r) => r.sleep_duration_minutes)),
-      lowestRestingHR: lowestHR
-        ? { bpm: lowestHR.resting_heart_rate, date: lowestHR.sleep_date }
+      lowestRestingHR: lowestHRRow
+        ? { bpm: lowestHRRow.resting_heart_rate, date: lowestHRRow.sleep_date }
         : null,
     },
     runs: {
