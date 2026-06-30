@@ -67,6 +67,26 @@ export type WorkoutRow = {
   exercise_count: number;
 };
 
+export type DashboardStats = {
+  sleep: {
+    avgDurationMinutes: number | null;
+    lowestRestingHR: { bpm: number; date: string } | null;
+  };
+  runs: {
+    distanceThisWeekKm: number;
+    distanceThisMonthKm: number;
+    distanceThisYearKm: number;
+  };
+  dailyStats: {
+    avgStepsAllTime: number | null;
+    avgStepsThisWeek: number | null;
+  };
+  macros: {
+    avgConsumedCalories: number | null;
+    avgConsumedProteinG: number | null;
+  };
+};
+
 export type DashboardData = {
   generatedAt: string;
   sleep: SleepRow[];
@@ -76,7 +96,44 @@ export type DashboardData = {
   macros: MacrosRow[];
   foodLogs: FoodLogRow[];
   workouts: WorkoutRow[];
+  stats: DashboardStats;
 };
+
+// --- date helpers ---
+
+function isoDate(d: Date): string {
+  return d.toISOString().slice(0, 10);
+}
+
+function startOfWeekISO(): string {
+  const d = new Date();
+  const day = d.getUTCDay(); // 0=Sun
+  d.setUTCDate(d.getUTCDate() - (day === 0 ? 6 : day - 1)); // Monday
+  d.setUTCHours(0, 0, 0, 0);
+  return isoDate(d);
+}
+
+function startOfMonthISO(): string {
+  const d = new Date();
+  return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}-01`;
+}
+
+function startOfYearISO(): string {
+  return `${new Date().getUTCFullYear()}-01-01`;
+}
+
+// --- stat helpers ---
+
+function avg(values: number[]): number | null {
+  if (values.length === 0) return null;
+  return Math.round(values.reduce((a, b) => a + b, 0) / values.length);
+}
+
+function runDistanceKm(runs: Array<{ total_time_sec: number; avg_speed_kmh: number }>): number {
+  return +runs.reduce((sum, r) => sum + (r.total_time_sec / 3600) * r.avg_speed_kmh, 0).toFixed(2);
+}
+
+// ---
 
 export async function fetchDashboardData(
   telegramUserId: number,
@@ -84,37 +141,115 @@ export async function fetchDashboardData(
   const user = await ensureUser(telegramUserId);
   const uid = user.id;
 
-  const [sleep, runs, dailyStats, sportActivities, macros, foodLogs, workouts] =
-    await Promise.all([
-      supabaseRequest<SleepRow[]>(
-        `garmin_sleep_entries?select=sleep_date,sleep_duration_minutes,deep_sleep_minutes,light_sleep_minutes,rem_sleep_minutes,awake_duration_minutes,resting_heart_rate,body_battery_charge&user_id=eq.${uid}&order=sleep_date.desc&limit=10`,
-        { method: "GET" },
-      ),
-      supabaseRequest<RunRow[]>(
-        `garmin_run_entries?select=run_date,avg_pace_sec_per_km,avg_speed_kmh,total_time_sec,avg_heart_rate_bpm,total_calories,aerobic_training_effect&user_id=eq.${uid}&order=run_date.desc,created_at.desc&limit=10`,
-        { method: "GET" },
-      ),
-      supabaseRequest<DailyStatsRow[]>(
-        `garmin_daily_stats_entries?select=entry_date,steps,calories_burned,resting_bpm,high_bpm,body_battery_gained,body_battery_drained&user_id=eq.${uid}&order=entry_date.desc&limit=10`,
-        { method: "GET" },
-      ),
-      supabaseRequest<SportActivityRow[]>(
-        `garmin_sport_activity_entries?select=activity_date,total_time_sec,avg_heart_rate_bpm,max_heart_rate_bpm,total_calories,aerobic_training_effect,total_intensity_minutes&user_id=eq.${uid}&order=activity_date.desc,created_at.desc&limit=10`,
-        { method: "GET" },
-      ),
-      supabaseRequest<MacrosRow[]>(
-        `healthifyme_macros_entries?select=entry_date,consumed_calories,calorie_goal,protein_consumed_g,carbs_consumed_g,fats_consumed_g,fibre_consumed_g&user_id=eq.${uid}&order=entry_date.desc&limit=10`,
-        { method: "GET" },
-      ),
-      supabaseRequest<FoodLogRow[]>(
-        `healthifyme_food_log_entries?select=entry_date,healthifyme_food_log_meals(meal_name,meal_calories)&user_id=eq.${uid}&order=entry_date.desc&limit=10`,
-        { method: "GET" },
-      ),
-      supabaseRequest<WorkoutRow[]>(
-        `hevy_workout_entries?select=workout_date,workout_name,duration_sec,total_volume_kg,exercise_count&user_id=eq.${uid}&order=workout_date.desc,created_at.desc&limit=10`,
-        { method: "GET" },
-      ),
-    ]);
+  const weekStart = startOfWeekISO();
+  const monthStart = startOfMonthISO();
+  const yearStart = startOfYearISO();
+
+  const [
+    sleep,
+    runs,
+    dailyStats,
+    sportActivities,
+    macros,
+    foodLogs,
+    workouts,
+    // stats queries
+    allSleepDurations,
+    lowestHREntry,
+    runsThisWeek,
+    runsThisMonth,
+    runsThisYear,
+    allSteps,
+    stepsThisWeek,
+    allMacros,
+  ] = await Promise.all([
+    supabaseRequest<SleepRow[]>(
+      `garmin_sleep_entries?select=sleep_date,sleep_duration_minutes,deep_sleep_minutes,light_sleep_minutes,rem_sleep_minutes,awake_duration_minutes,resting_heart_rate,body_battery_charge&user_id=eq.${uid}&order=sleep_date.desc&limit=10`,
+      { method: "GET" },
+    ),
+    supabaseRequest<RunRow[]>(
+      `garmin_run_entries?select=run_date,avg_pace_sec_per_km,avg_speed_kmh,total_time_sec,avg_heart_rate_bpm,total_calories,aerobic_training_effect&user_id=eq.${uid}&order=run_date.desc,created_at.desc&limit=10`,
+      { method: "GET" },
+    ),
+    supabaseRequest<DailyStatsRow[]>(
+      `garmin_daily_stats_entries?select=entry_date,steps,calories_burned,resting_bpm,high_bpm,body_battery_gained,body_battery_drained&user_id=eq.${uid}&order=entry_date.desc&limit=10`,
+      { method: "GET" },
+    ),
+    supabaseRequest<SportActivityRow[]>(
+      `garmin_sport_activity_entries?select=activity_date,total_time_sec,avg_heart_rate_bpm,max_heart_rate_bpm,total_calories,aerobic_training_effect,total_intensity_minutes&user_id=eq.${uid}&order=activity_date.desc,created_at.desc&limit=10`,
+      { method: "GET" },
+    ),
+    supabaseRequest<MacrosRow[]>(
+      `healthifyme_macros_entries?select=entry_date,consumed_calories,calorie_goal,protein_consumed_g,carbs_consumed_g,fats_consumed_g,fibre_consumed_g&user_id=eq.${uid}&order=entry_date.desc&limit=10`,
+      { method: "GET" },
+    ),
+    supabaseRequest<FoodLogRow[]>(
+      `healthifyme_food_log_entries?select=entry_date,healthifyme_food_log_meals(meal_name,meal_calories)&user_id=eq.${uid}&order=entry_date.desc&limit=10`,
+      { method: "GET" },
+    ),
+    supabaseRequest<WorkoutRow[]>(
+      `hevy_workout_entries?select=workout_date,workout_name,duration_sec,total_volume_kg,exercise_count&user_id=eq.${uid}&order=workout_date.desc,created_at.desc&limit=10`,
+      { method: "GET" },
+    ),
+    // all sleep durations for average
+    supabaseRequest<Array<{ sleep_duration_minutes: number }>>(
+      `garmin_sleep_entries?select=sleep_duration_minutes&user_id=eq.${uid}`,
+      { method: "GET" },
+    ),
+    // single entry with lowest resting HR
+    supabaseRequest<Array<{ resting_heart_rate: number; sleep_date: string }>>(
+      `garmin_sleep_entries?select=resting_heart_rate,sleep_date&user_id=eq.${uid}&order=resting_heart_rate.asc&limit=1`,
+      { method: "GET" },
+    ),
+    supabaseRequest<Array<{ total_time_sec: number; avg_speed_kmh: number }>>(
+      `garmin_run_entries?select=total_time_sec,avg_speed_kmh&user_id=eq.${uid}&run_date=gte.${weekStart}`,
+      { method: "GET" },
+    ),
+    supabaseRequest<Array<{ total_time_sec: number; avg_speed_kmh: number }>>(
+      `garmin_run_entries?select=total_time_sec,avg_speed_kmh&user_id=eq.${uid}&run_date=gte.${monthStart}`,
+      { method: "GET" },
+    ),
+    supabaseRequest<Array<{ total_time_sec: number; avg_speed_kmh: number }>>(
+      `garmin_run_entries?select=total_time_sec,avg_speed_kmh&user_id=eq.${uid}&run_date=gte.${yearStart}`,
+      { method: "GET" },
+    ),
+    supabaseRequest<Array<{ steps: number }>>(
+      `garmin_daily_stats_entries?select=steps&user_id=eq.${uid}`,
+      { method: "GET" },
+    ),
+    supabaseRequest<Array<{ steps: number }>>(
+      `garmin_daily_stats_entries?select=steps&user_id=eq.${uid}&entry_date=gte.${weekStart}`,
+      { method: "GET" },
+    ),
+    supabaseRequest<Array<{ consumed_calories: number; protein_consumed_g: number }>>(
+      `healthifyme_macros_entries?select=consumed_calories,protein_consumed_g&user_id=eq.${uid}`,
+      { method: "GET" },
+    ),
+  ]);
+
+  const lowestHR = lowestHREntry[0];
+
+  const stats: DashboardStats = {
+    sleep: {
+      avgDurationMinutes: avg(allSleepDurations.map((r) => r.sleep_duration_minutes)),
+      lowestRestingHR: lowestHR
+        ? { bpm: lowestHR.resting_heart_rate, date: lowestHR.sleep_date }
+        : null,
+    },
+    runs: {
+      distanceThisWeekKm: runDistanceKm(runsThisWeek),
+      distanceThisMonthKm: runDistanceKm(runsThisMonth),
+      distanceThisYearKm: runDistanceKm(runsThisYear),
+    },
+    dailyStats: {
+      avgStepsAllTime: avg(allSteps.map((r) => r.steps)),
+      avgStepsThisWeek: avg(stepsThisWeek.map((r) => r.steps)),
+    },
+    macros: {
+      avgConsumedCalories: avg(allMacros.map((r) => r.consumed_calories)),
+      avgConsumedProteinG: avg(allMacros.map((r) => r.protein_consumed_g)),
+    },
+  };
 
   return {
     generatedAt: new Date().toLocaleString("en-GB", {
@@ -131,5 +266,6 @@ export async function fetchDashboardData(
     macros,
     foodLogs,
     workouts,
+    stats,
   };
 }

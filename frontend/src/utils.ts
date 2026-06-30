@@ -1,3 +1,14 @@
+export function fmtDate(isoDate: string): string {
+  const [year, month, day] = isoDate.split("-");
+  const d = new Date(`${year}-${month}-${day}T00:00:00Z`);
+  return d.toLocaleDateString("en-GB", {
+    day: "numeric",
+    month: "short",
+    year: "2-digit",
+    timeZone: "UTC",
+  });
+}
+
 export function fmtDurMins(mins: number): string {
   const h = Math.floor(mins / 60);
   const m = mins % 60;

@@ -65,6 +65,26 @@ export type WorkoutRow = {
   exercise_count: number;
 };
 
+export type DashboardStats = {
+  sleep: {
+    avgDurationMinutes: number | null;
+    lowestRestingHR: { bpm: number; date: string } | null;
+  };
+  runs: {
+    distanceThisWeekKm: number;
+    distanceThisMonthKm: number;
+    distanceThisYearKm: number;
+  };
+  dailyStats: {
+    avgStepsAllTime: number | null;
+    avgStepsThisWeek: number | null;
+  };
+  macros: {
+    avgConsumedCalories: number | null;
+    avgConsumedProteinG: number | null;
+  };
+};
+
 export type DashboardData = {
   generatedAt: string;
   sleep: SleepRow[];
@@ -74,4 +94,5 @@ export type DashboardData = {
   macros: MacrosRow[];
   foodLogs: FoodLogRow[];
   workouts: WorkoutRow[];
+  stats: DashboardStats;
 };
