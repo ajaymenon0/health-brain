@@ -2,7 +2,9 @@ import http from "http";
 import fs from "fs";
 import path from "path";
 import config from "./config";
-import { fetchDashboardData } from "./dashboard";
+import { fetchDashboardData, type Period } from "./dashboard";
+
+const VALID_PERIODS = new Set<string>(["10", "30", "90", "year", "all"]);
 
 const publicDir = path.join(process.cwd(), "public");
 
@@ -17,7 +19,7 @@ const MIME: Record<string, string> = {
   ".ico": "image/x-icon",
 };
 
-async function handleApiData(res: http.ServerResponse): Promise<void> {
+async function handleApiData(req: http.IncomingMessage, res: http.ServerResponse): Promise<void> {
   const userId = config.dashboard.telegramUserId;
 
   if (!userId) {
@@ -30,8 +32,12 @@ async function handleApiData(res: http.ServerResponse): Promise<void> {
     return;
   }
 
+  const qs = new URLSearchParams((req.url ?? "").split("?")[1] ?? "");
+  const rawPeriod = qs.get("period") ?? "10";
+  const period: Period = VALID_PERIODS.has(rawPeriod) ? (rawPeriod as Period) : "10";
+
   try {
-    const data = await fetchDashboardData(userId);
+    const data = await fetchDashboardData(userId, period);
     res.writeHead(200, { "Content-Type": "application/json" });
     res.end(JSON.stringify(data));
   } catch (err) {
@@ -81,7 +87,7 @@ export function startServer(): void {
     const urlPath = req.url?.split("?")[0] ?? "/";
 
     if (req.method === "GET" && urlPath === "/api/data") {
-      void handleApiData(res);
+      void handleApiData(req, res);
       return;
     }
 

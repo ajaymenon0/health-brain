@@ -10,6 +10,15 @@ import { FoodLogSection } from "./sections/FoodLogSection";
 import { WorkoutsSection } from "./sections/WorkoutsSection";
 
 export type View = "table" | "chart";
+export type Period = "10" | "30" | "90" | "year" | "all";
+
+const PERIOD_OPTIONS: { value: Period; label: string }[] = [
+  { value: "10", label: "10 days" },
+  { value: "30", label: "30 days" },
+  { value: "90", label: "90 days" },
+  { value: "year", label: "1 year" },
+  { value: "all", label: "All" },
+];
 
 const TABS = [
   { id: "sleep", label: "Sleep" },
@@ -29,11 +38,12 @@ export function App() {
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<TabId>("sleep");
   const [view, setView] = useState<View>("table");
+  const [period, setPeriod] = useState<Period>("10");
 
   const fetchData = useCallback(() => {
     setLoading(true);
     setError(null);
-    fetch("/api/data")
+    fetch(`/api/data?period=${period}`)
       .then((res) => {
         if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
         return res.json() as Promise<DashboardData>;
@@ -41,7 +51,7 @@ export function App() {
       .then((d) => setData(d))
       .catch((e: Error) => setError(e.message))
       .finally(() => setLoading(false));
-  }, []);
+  }, [period]);
 
   useEffect(() => {
     fetchData();
@@ -71,9 +81,17 @@ export function App() {
             <span className="sync-label">Last Sync</span>
             <span className="sync-date">{data.generatedAt}</span>
           </div>
-          <button className="refresh-btn" onClick={fetchData}>
+          <select
+            className="period-select"
+            value={period}
+            onChange={(e) => setPeriod(e.target.value as Period)}
+          >
+            {PERIOD_OPTIONS.map((o) => (
+              <option key={o.value} value={o.value}>{o.label}</option>
+            ))}
+          </select>
+          <button className="refresh-btn" onClick={fetchData} title="Refresh">
             <RefreshCw size={14} />
-            Refresh
           </button>
         </div>
       </header>

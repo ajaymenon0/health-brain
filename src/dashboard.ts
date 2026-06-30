@@ -1,5 +1,13 @@
 import { ensureUser, supabaseRequest } from "./supabase";
 
+export type Period = "10" | "30" | "90" | "year" | "all";
+
+function periodLimit(period: Period): string {
+  if (period === "all") return "";
+  const n = period === "year" ? 365 : period;
+  return `&limit=${n}`;
+}
+
 export type SleepRow = {
   sleep_date: string;
   sleep_duration_minutes: number;
@@ -137,6 +145,7 @@ function runDistanceKm(runs: Array<{ total_time_sec: number; avg_speed_kmh: numb
 
 export async function fetchDashboardData(
   telegramUserId: number,
+  period: Period = "10",
 ): Promise<DashboardData> {
   const user = await ensureUser(telegramUserId);
   const uid = user.id;
@@ -144,6 +153,7 @@ export async function fetchDashboardData(
   const weekStart = startOfWeekISO();
   const monthStart = startOfMonthISO();
   const yearStart = startOfYearISO();
+  const lim = periodLimit(period);
 
   const [
     sleep,
@@ -164,31 +174,31 @@ export async function fetchDashboardData(
     allMacros,
   ] = await Promise.all([
     supabaseRequest<SleepRow[]>(
-      `garmin_sleep_entries?select=sleep_date,sleep_duration_minutes,deep_sleep_minutes,light_sleep_minutes,rem_sleep_minutes,awake_duration_minutes,resting_heart_rate,body_battery_charge&user_id=eq.${uid}&order=sleep_date.desc&limit=10`,
+      `garmin_sleep_entries?select=sleep_date,sleep_duration_minutes,deep_sleep_minutes,light_sleep_minutes,rem_sleep_minutes,awake_duration_minutes,resting_heart_rate,body_battery_charge&user_id=eq.${uid}&order=sleep_date.desc${lim}`,
       { method: "GET" },
     ),
     supabaseRequest<RunRow[]>(
-      `garmin_run_entries?select=run_date,avg_pace_sec_per_km,avg_speed_kmh,total_time_sec,avg_heart_rate_bpm,total_calories,aerobic_training_effect&user_id=eq.${uid}&order=run_date.desc,created_at.desc&limit=10`,
+      `garmin_run_entries?select=run_date,avg_pace_sec_per_km,avg_speed_kmh,total_time_sec,avg_heart_rate_bpm,total_calories,aerobic_training_effect&user_id=eq.${uid}&order=run_date.desc,created_at.desc${lim}`,
       { method: "GET" },
     ),
     supabaseRequest<DailyStatsRow[]>(
-      `garmin_daily_stats_entries?select=entry_date,steps,calories_burned,resting_bpm,high_bpm,body_battery_gained,body_battery_drained&user_id=eq.${uid}&order=entry_date.desc&limit=10`,
+      `garmin_daily_stats_entries?select=entry_date,steps,calories_burned,resting_bpm,high_bpm,body_battery_gained,body_battery_drained&user_id=eq.${uid}&order=entry_date.desc${lim}`,
       { method: "GET" },
     ),
     supabaseRequest<SportActivityRow[]>(
-      `garmin_sport_activity_entries?select=activity_date,total_time_sec,avg_heart_rate_bpm,max_heart_rate_bpm,total_calories,aerobic_training_effect,total_intensity_minutes&user_id=eq.${uid}&order=activity_date.desc,created_at.desc&limit=10`,
+      `garmin_sport_activity_entries?select=activity_date,total_time_sec,avg_heart_rate_bpm,max_heart_rate_bpm,total_calories,aerobic_training_effect,total_intensity_minutes&user_id=eq.${uid}&order=activity_date.desc,created_at.desc${lim}`,
       { method: "GET" },
     ),
     supabaseRequest<MacrosRow[]>(
-      `healthifyme_macros_entries?select=entry_date,consumed_calories,calorie_goal,protein_consumed_g,carbs_consumed_g,fats_consumed_g,fibre_consumed_g&user_id=eq.${uid}&order=entry_date.desc&limit=10`,
+      `healthifyme_macros_entries?select=entry_date,consumed_calories,calorie_goal,protein_consumed_g,carbs_consumed_g,fats_consumed_g,fibre_consumed_g&user_id=eq.${uid}&order=entry_date.desc${lim}`,
       { method: "GET" },
     ),
     supabaseRequest<FoodLogRow[]>(
-      `healthifyme_food_log_entries?select=entry_date,healthifyme_food_log_meals(meal_name,meal_calories)&user_id=eq.${uid}&order=entry_date.desc&limit=10`,
+      `healthifyme_food_log_entries?select=entry_date,healthifyme_food_log_meals(meal_name,meal_calories)&user_id=eq.${uid}&order=entry_date.desc${lim}`,
       { method: "GET" },
     ),
     supabaseRequest<WorkoutRow[]>(
-      `hevy_workout_entries?select=workout_date,workout_name,duration_sec,total_volume_kg,exercise_count&user_id=eq.${uid}&order=workout_date.desc,created_at.desc&limit=10`,
+      `hevy_workout_entries?select=workout_date,workout_name,duration_sec,total_volume_kg,exercise_count&user_id=eq.${uid}&order=workout_date.desc,created_at.desc${lim}`,
       { method: "GET" },
     ),
     // all sleep durations for average
