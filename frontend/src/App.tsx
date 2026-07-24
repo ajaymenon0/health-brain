@@ -6,6 +6,7 @@ import { RunsSection } from "./sections/RunsSection";
 import { DailyStatsSection } from "./sections/DailyStatsSection";
 import { SportSection } from "./sections/SportSection";
 import { MacrosSection } from "./sections/MacrosSection";
+import { WeightSection } from "./sections/WeightSection";
 import { FoodLogSection } from "./sections/FoodLogSection";
 import { WorkoutsSection } from "./sections/WorkoutsSection";
 
@@ -26,6 +27,7 @@ const TABS = [
   { id: "daily-stats", label: "Daily Stats" },
   { id: "sport-activities", label: "Sport / Activities" },
   { id: "macros", label: "Macros" },
+  { id: "weight", label: "Weight" },
   { id: "food-log", label: "Food Log" },
   { id: "workouts", label: "Workouts" },
 ] as const;
@@ -111,6 +113,9 @@ export function App() {
         )}
         {activeTab === "macros" && (
           <MacrosSection data={data.macros} view={view} onViewChange={setView} stats={data.stats.macros} />
+        )}
+        {activeTab === "weight" && (
+          <WeightSection data={data.weights} view={view} onViewChange={setView} />
         )}
         {activeTab === "food-log" && (
           <FoodLogSection data={data.foodLogs} view={view} onViewChange={setView} />
