@@ -5,6 +5,39 @@ import type { View } from "../App";
 import type { WeightRow } from "../types";
 import { fmtDate, fmtNum, isWeekend } from "../utils";
 
+function statusTone(status: string | null | undefined): string {
+  const value = status?.trim().toLowerCase() ?? "";
+
+  if (!value) return "neutral";
+  if (value === "healthy" || value === "ideal") return "good";
+  if (value === "low") return "warn";
+  if (value === "high") return "bad";
+  return "neutral";
+}
+
+function statusBadge(status: string | null | undefined) {
+  if (!status) {
+    return <span className="metric-status metric-status-neutral">—</span>;
+  }
+
+  return (
+    <span className={`metric-status metric-status-${statusTone(status)}`}>
+      {status}
+    </span>
+  );
+}
+
+function statusValue(
+  text: string,
+  status: string | null | undefined,
+) {
+  return (
+    <span className={`metric-value metric-value-${statusTone(status)}`}>
+      {text}
+    </span>
+  );
+}
+
 function WeightChart({ data }: { data: WeightRow[] }) {
   const rows = [...data].reverse();
   const dates = rows.map((r) => fmtDate(r.entry_date));
@@ -75,13 +108,22 @@ export function WeightSection({ data, view, onViewChange }: Props) {
 
   const rows = data.map((r) => [
     fmtDate(r.entry_date),
-    `${fmtNum(r.weight_kg, 1)} kg`,
-    r.weight_status ?? "—",
-    `${fmtNum(r.body_fat_percent, 2)} %`,
-    `${fmtNum(r.muscle_mass_percent, 2)} %`,
-    fmtNum(r.bmi, 2),
-    `${fmtNum(r.body_hydration_percent, 2)} %`,
-    `${fmtNum(r.visceral_fat_percent, 2)} %`,
+    statusValue(`${fmtNum(r.weight_kg, 1)} kg`, r.weight_status),
+    statusBadge(r.weight_status),
+    statusValue(`${fmtNum(r.body_fat_percent, 2)} %`, r.body_fat_status),
+    statusValue(
+      `${fmtNum(r.muscle_mass_percent, 2)} %`,
+      r.muscle_mass_percent_status,
+    ),
+    statusValue(fmtNum(r.bmi, 2), r.bmi_status),
+    statusValue(
+      `${fmtNum(r.body_hydration_percent, 2)} %`,
+      r.body_hydration_status,
+    ),
+    statusValue(
+      `${fmtNum(r.visceral_fat_percent, 2)} %`,
+      r.visceral_fat_status,
+    ),
     fmtNum(r.health_score, 2),
   ]);
 

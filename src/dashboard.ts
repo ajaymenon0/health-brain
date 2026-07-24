@@ -64,10 +64,15 @@ export type WeightRow = {
   weight_kg: number;
   weight_status: string | null;
   body_fat_percent: number;
+  body_fat_status: string | null;
   muscle_mass_percent: number;
+  muscle_mass_percent_status: string | null;
   bmi: number;
+  bmi_status: string | null;
   body_hydration_percent: number;
+  body_hydration_status: string | null;
   visceral_fat_percent: number;
+  visceral_fat_status: string | null;
   health_score: number;
 };
 
@@ -204,7 +209,7 @@ export async function fetchDashboardData(
       { method: "GET" },
     ),
     supabaseRequest<WeightRow[]>(
-      `healthifyme_weight_entries?select=entry_date,weight_kg,weight_status,body_fat_percent,muscle_mass_percent,bmi,body_hydration_percent,visceral_fat_percent,health_score&user_id=eq.${uid}&order=entry_date.desc${lim}`,
+      `healthifyme_weight_entries?select=entry_date,weight_kg,weight_status,body_fat_percent,body_fat_status,muscle_mass_percent,muscle_mass_percent_status,bmi,bmi_status,body_hydration_percent,body_hydration_status,visceral_fat_percent,visceral_fat_status,health_score&user_id=eq.${uid}&order=entry_date.desc${lim}`,
       { method: "GET" },
     ),
     supabaseRequest<FoodLogRow[]>(

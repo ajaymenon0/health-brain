@@ -54,10 +54,15 @@ export type WeightRow = {
   weight_kg: number;
   weight_status: string | null;
   body_fat_percent: number;
+  body_fat_status: string | null;
   muscle_mass_percent: number;
+  muscle_mass_percent_status: string | null;
   bmi: number;
+  bmi_status: string | null;
   body_hydration_percent: number;
+  body_hydration_status: string | null;
   visceral_fat_percent: number;
+  visceral_fat_status: string | null;
   health_score: number;
 };
 
