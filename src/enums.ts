@@ -14,6 +14,10 @@ export const SCREENSHOT_TYPES = [
     value: "healthifyme_food_log",
   },
   {
+    label: "HFM Weight",
+    value: "healthifyme_weight",
+  },
+  {
     label: "Garmin Run",
     value: "garmin_run",
   },

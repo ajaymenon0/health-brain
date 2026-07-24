@@ -5,6 +5,7 @@ import {
   garminSportActivitySchema,
   healthifyMeFoodLogSchema,
   healthifyMeMacrosSchema,
+  healthifyMeWeightSchema,
   hevyWorkoutSchema,
   type ScreenshotType,
 } from "./types";
@@ -24,6 +25,7 @@ const screenshotTypeToSchema = {
   garmin_run: garminRunSchema,
   garmin_daily_stats: garminDailyStatsSchema,
   healthifyme_food_log: healthifyMeFoodLogSchema,
+  healthifyme_weight: healthifyMeWeightSchema,
   hevy_workout: hevyWorkoutSchema,
   garmin_sport_activity: garminSportActivitySchema,
 } satisfies Record<ScreenshotType, z.ZodTypeAny>;
@@ -222,6 +224,79 @@ async function persistGarminSportActivity(
   });
 }
 
+async function persistHealthifyMeWeight(
+  userId: string,
+  entryDate: string,
+  parsedResult: string,
+) {
+  const parsed = healthifyMeWeightSchema.parse(JSON.parse(parsedResult));
+
+  await supabaseRequest(
+    "healthifyme_weight_entries?on_conflict=user_id,entry_date",
+    {
+      method: "POST",
+      headers: {
+        Prefer: "resolution=merge-duplicates,return=minimal",
+      },
+      body: JSON.stringify([
+        {
+          user_id: userId,
+          entry_date: entryDate,
+          screenshot_type: parsed.screenshot_type,
+          weight_kg: parsed.summary.weight_kg,
+          weight_status: parsed.summary.weight_status,
+          measured_on_text: parsed.summary.measured_on,
+          measurement_source: parsed.summary.source,
+          body_fat_percent: parsed.body_composition.body_fat_percent,
+          body_fat_status: parsed.statuses.body_fat_status,
+          muscle_mass_percent: parsed.body_composition.muscle_mass_percent,
+          muscle_mass_percent_status:
+            parsed.statuses.muscle_mass_percent_status,
+          bmi: parsed.body_composition.bmi,
+          bmi_status: parsed.statuses.bmi_status,
+          bmr_calories: parsed.body_composition.bmr_calories,
+          bmr_status: parsed.statuses.bmr_status,
+          bone_mass_percent: parsed.body_composition.bone_mass_percent,
+          bone_mass_status: parsed.statuses.bone_mass_status,
+          body_hydration_percent:
+            parsed.body_composition.body_hydration_percent,
+          body_hydration_status: parsed.statuses.body_hydration_status,
+          metabolic_age_years: parsed.body_composition.metabolic_age_years,
+          metabolic_age_status: parsed.statuses.metabolic_age_status,
+          protein_percent: parsed.body_composition.protein_percent,
+          protein_status: parsed.statuses.protein_status,
+          skeletal_muscle_percent:
+            parsed.body_composition.skeletal_muscle_percent,
+          skeletal_muscle_status: parsed.statuses.skeletal_muscle_status,
+          subcutaneous_fat_percent:
+            parsed.body_composition.subcutaneous_fat_percent,
+          subcutaneous_fat_status: parsed.statuses.subcutaneous_fat_status,
+          visceral_fat_percent:
+            parsed.body_composition.visceral_fat_percent,
+          visceral_fat_status: parsed.statuses.visceral_fat_status,
+          muscle_mass_kg: parsed.body_composition.muscle_mass_kg,
+          lean_body_mass_kg: parsed.body_composition.lean_body_mass_kg,
+          lean_body_mass_status: parsed.statuses.lean_body_mass_status,
+          health_score: parsed.body_composition.health_score,
+          obesity_degree_percent:
+            parsed.body_composition.obesity_degree_percent,
+          obesity_degree_status: parsed.statuses.obesity_degree_status,
+          mineral_salt_kg: parsed.body_composition.mineral_salt_kg,
+          best_visual_weight_kg:
+            parsed.body_composition.best_visual_weight_kg,
+          standard_weight_kg: parsed.body_composition.standard_weight_kg,
+          weight_control_kg: parsed.body_composition.weight_control_kg,
+          weight_control_status: parsed.statuses.weight_control_status,
+          fat_control_kg: parsed.body_composition.fat_control_kg,
+          fat_control_status: parsed.statuses.fat_control_status,
+          muscle_control_kg: parsed.body_composition.muscle_control_kg,
+          muscle_control_status: parsed.statuses.muscle_control_status,
+        },
+      ]),
+    },
+  );
+}
+
 async function persistHealthifyMeFoodLog(
   userId: string,
   entryDate: string,
@@ -412,6 +487,11 @@ export async function persistParsedScreenshot({
 
   if (screenshotType === "healthifyme_food_log") {
     await persistHealthifyMeFoodLog(user.id, isoDate, parsedResult);
+    return;
+  }
+
+  if (screenshotType === "healthifyme_weight") {
+    await persistHealthifyMeWeight(user.id, isoDate, parsedResult);
     return;
   }
 

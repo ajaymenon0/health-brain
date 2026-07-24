@@ -6,6 +6,7 @@ export type ScreenshotType =
   | "garmin_sleep"
   | "healthifyme_macros"
   | "healthifyme_food_log"
+  | "healthifyme_weight"
   | "garmin_run"
   | "garmin_daily_stats"
   | "hevy_workout"
@@ -360,6 +361,70 @@ export const garminSportActivitySchema = z.object({
     vigorous_minutes: z.number().describe("Vigorous intensity minutes."),
 
     total_minutes: z.number().describe("Total intensity minutes."),
+  }),
+});
+
+export const healthifyMeWeightSchema = z.object({
+  screenshot_type: z.literal("healthifyme_weight"),
+
+  summary: z.object({
+    weight_kg: z.number().describe("Current body weight in kilograms."),
+    weight_status: z
+      .string()
+      .describe("Status label shown near the weight, such as High."),
+    measured_on: z
+      .string()
+      .describe(
+        "Displayed measurement date as shown in the UI, for example '14th July, 2026'.",
+      ),
+    source: z
+      .string()
+      .describe(
+        "Measurement source shown below the date, for example 'Smart Scale'.",
+      ),
+  }),
+
+  body_composition: z.object({
+    body_fat_percent: z.number(),
+    muscle_mass_percent: z.number(),
+    bmi: z.number(),
+    bmr_calories: z.number(),
+    bone_mass_percent: z.number(),
+    body_hydration_percent: z.number(),
+    metabolic_age_years: z.number(),
+    protein_percent: z.number(),
+    skeletal_muscle_percent: z.number(),
+    subcutaneous_fat_percent: z.number(),
+    visceral_fat_percent: z.number(),
+    muscle_mass_kg: z.number(),
+    lean_body_mass_kg: z.number(),
+    health_score: z.number(),
+    obesity_degree_percent: z.number(),
+    mineral_salt_kg: z.number(),
+    best_visual_weight_kg: z.number(),
+    standard_weight_kg: z.number(),
+    weight_control_kg: z.number(),
+    fat_control_kg: z.number(),
+    muscle_control_kg: z.number(),
+  }),
+
+  statuses: z.object({
+    body_fat_status: z.string().nullable(),
+    muscle_mass_percent_status: z.string().nullable(),
+    bmi_status: z.string().nullable(),
+    bmr_status: z.string().nullable(),
+    bone_mass_status: z.string().nullable(),
+    body_hydration_status: z.string().nullable(),
+    metabolic_age_status: z.string().nullable(),
+    protein_status: z.string().nullable(),
+    skeletal_muscle_status: z.string().nullable(),
+    subcutaneous_fat_status: z.string().nullable(),
+    visceral_fat_status: z.string().nullable(),
+    lean_body_mass_status: z.string().nullable(),
+    obesity_degree_status: z.string().nullable(),
+    weight_control_status: z.string().nullable(),
+    fat_control_status: z.string().nullable(),
+    muscle_control_status: z.string().nullable(),
   }),
 });
 
