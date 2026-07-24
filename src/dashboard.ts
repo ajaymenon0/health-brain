@@ -59,6 +59,18 @@ export type MacrosRow = {
   fibre_consumed_g: number;
 };
 
+export type WeightRow = {
+  entry_date: string;
+  weight_kg: number;
+  weight_status: string | null;
+  body_fat_percent: number;
+  muscle_mass_percent: number;
+  bmi: number;
+  body_hydration_percent: number;
+  visceral_fat_percent: number;
+  health_score: number;
+};
+
 export type FoodLogRow = {
   entry_date: string;
   healthifyme_food_log_meals?: Array<{
@@ -102,6 +114,7 @@ export type DashboardData = {
   dailyStats: DailyStatsRow[];
   sportActivities: SportActivityRow[];
   macros: MacrosRow[];
+  weights: WeightRow[];
   foodLogs: FoodLogRow[];
   workouts: WorkoutRow[];
   stats: DashboardStats;
@@ -161,6 +174,7 @@ export async function fetchDashboardData(
     dailyStats,
     sportActivities,
     macros,
+    weights,
     foodLogs,
     workouts,
     // fixed-window stats
@@ -187,6 +201,10 @@ export async function fetchDashboardData(
     ),
     supabaseRequest<MacrosRow[]>(
       `healthifyme_macros_entries?select=entry_date,consumed_calories,calorie_goal,protein_consumed_g,carbs_consumed_g,fats_consumed_g,fibre_consumed_g&user_id=eq.${uid}&order=entry_date.desc${lim}`,
+      { method: "GET" },
+    ),
+    supabaseRequest<WeightRow[]>(
+      `healthifyme_weight_entries?select=entry_date,weight_kg,weight_status,body_fat_percent,muscle_mass_percent,bmi,body_hydration_percent,visceral_fat_percent,health_score&user_id=eq.${uid}&order=entry_date.desc${lim}`,
       { method: "GET" },
     ),
     supabaseRequest<FoodLogRow[]>(
@@ -256,6 +274,7 @@ export async function fetchDashboardData(
     dailyStats,
     sportActivities,
     macros,
+    weights,
     foodLogs,
     workouts,
     stats,
