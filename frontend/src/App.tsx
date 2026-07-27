@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { RefreshCw } from "lucide-react";
 import type { DashboardData } from "./types";
+import { HomeSection } from "./sections/HomeSection";
 import { SleepSection } from "./sections/SleepSection";
 import { RunsSection } from "./sections/RunsSection";
 import { DailyStatsSection } from "./sections/DailyStatsSection";
@@ -22,6 +23,7 @@ const PERIOD_OPTIONS: { value: Period; label: string }[] = [
 ];
 
 const TABS = [
+  { id: "home", label: "Home" },
   { id: "sleep", label: "Sleep" },
   { id: "runs", label: "Runs" },
   { id: "daily-stats", label: "Daily Stats" },
@@ -38,7 +40,7 @@ export function App() {
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<TabId>("sleep");
+  const [activeTab, setActiveTab] = useState<TabId>("home");
   const [view, setView] = useState<View>("table");
   const [period, setPeriod] = useState<Period>("10");
 
@@ -99,6 +101,9 @@ export function App() {
       </header>
 
       <main>
+        {activeTab === "home" && (
+          <HomeSection stats={data.stats.home} />
+        )}
         {activeTab === "sleep" && (
           <SleepSection data={data.sleep} view={view} onViewChange={setView} stats={data.stats.sleep} />
         )}

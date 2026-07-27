@@ -93,6 +93,20 @@ export type WorkoutRow = {
 };
 
 export type DashboardStats = {
+  home: {
+    avgSleepThisWeek: number | null;
+    avgSleepPreviousWeek: number | null;
+    avgStepsThisWeek: number | null;
+    avgStepsPreviousWeek: number | null;
+    avgWeightThisWeek: number | null;
+    avgWeightPreviousWeek: number | null;
+    runDistanceThisWeekKm: number;
+    runDistancePreviousWeekKm: number;
+    avgCaloriesThisWeek: number | null;
+    avgCaloriesPreviousWeek: number | null;
+    avgProteinThisWeek: number | null;
+    avgProteinPreviousWeek: number | null;
+  };
   sleep: {
     avgDurationMinutes: number | null;
     lowestRestingHR: { bpm: number; date: string } | null;
@@ -139,6 +153,12 @@ function startOfWeekISO(): string {
   return isoDate(d);
 }
 
+function shiftISODate(iso: string, days: number): string {
+  const d = new Date(`${iso}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + days);
+  return isoDate(d);
+}
+
 function startOfMonthISO(): string {
   const d = new Date();
   return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}-01`;
@@ -155,6 +175,15 @@ function avg(values: number[]): number | null {
   return Math.round(values.reduce((a, b) => a + b, 0) / values.length);
 }
 
+function avgPrecise(values: number[], decimals = 1): number | null {
+  if (values.length === 0) return null;
+  return Number(
+    (
+      values.reduce((sum, value) => sum + value, 0) / values.length
+    ).toFixed(decimals),
+  );
+}
+
 function runDistanceKm(runs: Array<{ total_time_sec: number; avg_speed_kmh: number }>): number {
   return +runs.reduce((sum, r) => sum + (r.total_time_sec / 3600) * r.avg_speed_kmh, 0).toFixed(2);
 }
@@ -169,6 +198,8 @@ export async function fetchDashboardData(
   const uid = user.id;
 
   const weekStart = startOfWeekISO();
+  const previousWeekStart = shiftISODate(weekStart, -7);
+  const nextWeekStart = shiftISODate(weekStart, 7);
   const monthStart = startOfMonthISO();
   const yearStart = startOfYearISO();
   const lim = periodLimit(period);
@@ -183,10 +214,18 @@ export async function fetchDashboardData(
     foodLogs,
     workouts,
     // fixed-window stats
+    sleepThisWeek,
+    sleepPreviousWeek,
     runsThisWeek,
+    runsPreviousWeek,
     runsThisMonth,
     runsThisYear,
+    stepsPreviousWeek,
     stepsThisWeek,
+    weightThisWeek,
+    weightPreviousWeek,
+    macrosThisWeek,
+    macrosPreviousWeek,
   ] = await Promise.all([
     supabaseRequest<SleepRow[]>(
       `garmin_sleep_entries?select=sleep_date,sleep_duration_minutes,deep_sleep_minutes,light_sleep_minutes,rem_sleep_minutes,awake_duration_minutes,resting_heart_rate,body_battery_charge&user_id=eq.${uid}&order=sleep_date.desc${lim}`,
@@ -220,8 +259,20 @@ export async function fetchDashboardData(
       `hevy_workout_entries?select=workout_date,workout_name,duration_sec,total_volume_kg,exercise_count&user_id=eq.${uid}&order=workout_date.desc,created_at.desc${lim}`,
       { method: "GET" },
     ),
+    supabaseRequest<Array<{ sleep_duration_minutes: number }>>(
+      `garmin_sleep_entries?select=sleep_duration_minutes&user_id=eq.${uid}&sleep_date=gte.${weekStart}&sleep_date=lt.${nextWeekStart}`,
+      { method: "GET" },
+    ),
+    supabaseRequest<Array<{ sleep_duration_minutes: number }>>(
+      `garmin_sleep_entries?select=sleep_duration_minutes&user_id=eq.${uid}&sleep_date=gte.${previousWeekStart}&sleep_date=lt.${weekStart}`,
+      { method: "GET" },
+    ),
     supabaseRequest<Array<{ total_time_sec: number; avg_speed_kmh: number }>>(
       `garmin_run_entries?select=total_time_sec,avg_speed_kmh&user_id=eq.${uid}&run_date=gte.${weekStart}`,
+      { method: "GET" },
+    ),
+    supabaseRequest<Array<{ total_time_sec: number; avg_speed_kmh: number }>>(
+      `garmin_run_entries?select=total_time_sec,avg_speed_kmh&user_id=eq.${uid}&run_date=gte.${previousWeekStart}&run_date=lt.${weekStart}`,
       { method: "GET" },
     ),
     supabaseRequest<Array<{ total_time_sec: number; avg_speed_kmh: number }>>(
@@ -236,6 +287,26 @@ export async function fetchDashboardData(
       `garmin_daily_stats_entries?select=steps&user_id=eq.${uid}&entry_date=gte.${weekStart}`,
       { method: "GET" },
     ),
+    supabaseRequest<Array<{ steps: number }>>(
+      `garmin_daily_stats_entries?select=steps&user_id=eq.${uid}&entry_date=gte.${previousWeekStart}&entry_date=lt.${weekStart}`,
+      { method: "GET" },
+    ),
+    supabaseRequest<Array<{ weight_kg: number }>>(
+      `healthifyme_weight_entries?select=weight_kg&user_id=eq.${uid}&entry_date=gte.${weekStart}&entry_date=lt.${nextWeekStart}`,
+      { method: "GET" },
+    ),
+    supabaseRequest<Array<{ weight_kg: number }>>(
+      `healthifyme_weight_entries?select=weight_kg&user_id=eq.${uid}&entry_date=gte.${previousWeekStart}&entry_date=lt.${weekStart}`,
+      { method: "GET" },
+    ),
+    supabaseRequest<Array<{ consumed_calories: number; protein_consumed_g: number }>>(
+      `healthifyme_macros_entries?select=consumed_calories,protein_consumed_g&user_id=eq.${uid}&entry_date=gte.${weekStart}&entry_date=lt.${nextWeekStart}`,
+      { method: "GET" },
+    ),
+    supabaseRequest<Array<{ consumed_calories: number; protein_consumed_g: number }>>(
+      `healthifyme_macros_entries?select=consumed_calories,protein_consumed_g&user_id=eq.${uid}&entry_date=gte.${previousWeekStart}&entry_date=lt.${weekStart}`,
+      { method: "GET" },
+    ),
   ]);
 
   const lowestHRRow = sleep.reduce<SleepRow | null>(
@@ -245,6 +316,34 @@ export async function fetchDashboardData(
 
   // Period-bounded stats derived directly from the display data
   const stats: DashboardStats = {
+    home: {
+      avgSleepThisWeek: avgPrecise(
+        sleepThisWeek.map((r) => r.sleep_duration_minutes),
+      ),
+      avgSleepPreviousWeek: avgPrecise(
+        sleepPreviousWeek.map((r) => r.sleep_duration_minutes),
+      ),
+      avgStepsThisWeek: avgPrecise(stepsThisWeek.map((r) => r.steps)),
+      avgStepsPreviousWeek: avgPrecise(stepsPreviousWeek.map((r) => r.steps)),
+      avgWeightThisWeek: avgPrecise(weightThisWeek.map((r) => r.weight_kg)),
+      avgWeightPreviousWeek: avgPrecise(
+        weightPreviousWeek.map((r) => r.weight_kg),
+      ),
+      runDistanceThisWeekKm: runDistanceKm(runsThisWeek),
+      runDistancePreviousWeekKm: runDistanceKm(runsPreviousWeek),
+      avgCaloriesThisWeek: avgPrecise(
+        macrosThisWeek.map((r) => r.consumed_calories),
+      ),
+      avgCaloriesPreviousWeek: avgPrecise(
+        macrosPreviousWeek.map((r) => r.consumed_calories),
+      ),
+      avgProteinThisWeek: avgPrecise(
+        macrosThisWeek.map((r) => r.protein_consumed_g),
+      ),
+      avgProteinPreviousWeek: avgPrecise(
+        macrosPreviousWeek.map((r) => r.protein_consumed_g),
+      ),
+    },
     sleep: {
       avgDurationMinutes: avg(sleep.map((r) => r.sleep_duration_minutes)),
       lowestRestingHR: lowestHRRow

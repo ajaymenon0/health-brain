@@ -83,6 +83,20 @@ export type WorkoutRow = {
 };
 
 export type DashboardStats = {
+  home: {
+    avgSleepThisWeek: number | null;
+    avgSleepPreviousWeek: number | null;
+    avgStepsThisWeek: number | null;
+    avgStepsPreviousWeek: number | null;
+    avgWeightThisWeek: number | null;
+    avgWeightPreviousWeek: number | null;
+    runDistanceThisWeekKm: number;
+    runDistancePreviousWeekKm: number;
+    avgCaloriesThisWeek: number | null;
+    avgCaloriesPreviousWeek: number | null;
+    avgProteinThisWeek: number | null;
+    avgProteinPreviousWeek: number | null;
+  };
   sleep: {
     avgDurationMinutes: number | null;
     lowestRestingHR: { bpm: number; date: string } | null;

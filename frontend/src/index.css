@@ -350,6 +350,25 @@ main {
   color: var(--muted);
 }
 
+.delta-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-weight: 600;
+}
+
+.delta-up {
+  color: #15803d;
+}
+
+.delta-down {
+  color: #b91c1c;
+}
+
+.delta-neutral {
+  color: var(--muted);
+}
+
 /* ─── TABLE ─── */
 
 .table-wrap {

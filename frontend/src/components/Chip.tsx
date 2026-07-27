@@ -4,7 +4,7 @@ type StatCardProps = {
   title: string;
   value: string;
   unit?: string;
-  sub?: string;
+  sub?: ReactNode;
   icon?: ReactNode;
   iconColor?: string;
 };
