@@ -36,6 +36,14 @@ const TABS = [
 
 type TabId = (typeof TABS)[number]["id"];
 
+function startOfCurrentWeekISO(): string {
+  const date = new Date();
+  const day = date.getUTCDay();
+  date.setUTCDate(date.getUTCDate() - (day === 0 ? 6 : day - 1));
+  date.setUTCHours(0, 0, 0, 0);
+  return date.toISOString().slice(0, 10);
+}
+
 export function App() {
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -43,11 +51,16 @@ export function App() {
   const [activeTab, setActiveTab] = useState<TabId>("home");
   const [view, setView] = useState<View>("table");
   const [period, setPeriod] = useState<Period>("10");
+  const [selectedWeekStart, setSelectedWeekStart] = useState<string>(
+    startOfCurrentWeekISO(),
+  );
 
   const fetchData = useCallback(() => {
     setLoading(true);
     setError(null);
-    fetch(`/api/data?period=${period}`)
+    fetch(
+      `/api/data?period=${period}&weekStart=${encodeURIComponent(selectedWeekStart)}`,
+    )
       .then((res) => {
         if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
         return res.json() as Promise<DashboardData>;
@@ -55,7 +68,7 @@ export function App() {
       .then((d) => setData(d))
       .catch((e: Error) => setError(e.message))
       .finally(() => setLoading(false));
-  }, [period]);
+  }, [period, selectedWeekStart]);
 
   useEffect(() => {
     fetchData();
@@ -102,7 +115,11 @@ export function App() {
 
       <main>
         {activeTab === "home" && (
-          <HomeSection stats={data.stats.home} />
+          <HomeSection
+            stats={data.stats.home}
+            selectedWeekStart={selectedWeekStart}
+            onWeekChange={setSelectedWeekStart}
+          />
         )}
         {activeTab === "sleep" && (
           <SleepSection data={data.sleep} view={view} onViewChange={setView} stats={data.stats.sleep} />

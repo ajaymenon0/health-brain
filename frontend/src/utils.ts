@@ -10,8 +10,9 @@ export function fmtDate(isoDate: string): string {
 }
 
 export function fmtDurMins(mins: number): string {
-  const h = Math.floor(mins / 60);
-  const m = mins % 60;
+  const roundedMins = Math.round(mins);
+  const h = Math.floor(roundedMins / 60);
+  const m = roundedMins % 60;
   return `${h}h ${m}m`;
 }
 

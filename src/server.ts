@@ -35,9 +35,10 @@ async function handleApiData(req: http.IncomingMessage, res: http.ServerResponse
   const qs = new URLSearchParams((req.url ?? "").split("?")[1] ?? "");
   const rawPeriod = qs.get("period") ?? "10";
   const period: Period = VALID_PERIODS.has(rawPeriod) ? (rawPeriod as Period) : "10";
+  const weekStart = qs.get("weekStart") ?? undefined;
 
   try {
-    const data = await fetchDashboardData(userId, period);
+    const data = await fetchDashboardData(userId, period, weekStart);
     res.writeHead(200, { "Content-Type": "application/json" });
     res.end(JSON.stringify(data));
   } catch (err) {

@@ -16,7 +16,73 @@ import { fmtDurMins, fmtNum } from "../utils";
 
 type Props = {
   stats: DashboardStats["home"];
+  selectedWeekStart: string;
+  onWeekChange: (weekStart: string) => void;
 };
+
+type WeekOption = {
+  value: string;
+  label: string;
+};
+
+function isoDate(date: Date): string {
+  return date.toISOString().slice(0, 10);
+}
+
+function startOfCurrentWeekISO(): string {
+  const date = new Date();
+  const day = date.getUTCDay();
+  date.setUTCDate(date.getUTCDate() - (day === 0 ? 6 : day - 1));
+  date.setUTCHours(0, 0, 0, 0);
+  return isoDate(date);
+}
+
+function shiftISODate(iso: string, days: number): string {
+  const date = new Date(`${iso}T00:00:00Z`);
+  date.setUTCDate(date.getUTCDate() + days);
+  return isoDate(date);
+}
+
+function formatWeekLabel(weekStart: string): string {
+  const start = new Date(`${weekStart}T00:00:00Z`);
+  const end = new Date(`${shiftISODate(weekStart, 6)}T00:00:00Z`);
+
+  const startMonth = start.toLocaleDateString("en-GB", {
+    month: "short",
+    timeZone: "UTC",
+  });
+  const endMonth = end.toLocaleDateString("en-GB", {
+    month: "short",
+    timeZone: "UTC",
+  });
+
+  const startDay = start.toLocaleDateString("en-GB", {
+    day: "numeric",
+    timeZone: "UTC",
+  });
+  const endDay = end.toLocaleDateString("en-GB", {
+    day: "numeric",
+    timeZone: "UTC",
+  });
+
+  if (startMonth === endMonth) {
+    return `${startMonth} ${startDay} - ${endDay}`;
+  }
+
+  return `${startMonth} ${startDay} - ${endDay} ${endMonth}`;
+}
+
+function buildWeekOptions(): WeekOption[] {
+  const currentWeekStart = startOfCurrentWeekISO();
+
+  return Array.from({ length: 10 }, (_, index) => {
+    const weekStart = shiftISODate(currentWeekStart, index * -7);
+    return {
+      value: weekStart,
+      label: formatWeekLabel(weekStart),
+    };
+  });
+}
 
 function compareDirection(current: number | null, previous: number | null) {
   if (current === null || previous === null) {
@@ -30,7 +96,7 @@ function compareDirection(current: number | null, previous: number | null) {
   if (current > previous) {
     return {
       icon: <ArrowUp size={16} />,
-      label: `Up from ${fmtNum(previous, 1)}`,
+      label: fmtNum(current - previous, 1),
       className: "delta-up",
     };
   }
@@ -38,7 +104,7 @@ function compareDirection(current: number | null, previous: number | null) {
   if (current < previous) {
     return {
       icon: <ArrowDown size={16} />,
-      label: `Down from ${fmtNum(previous, 1)}`,
+      label: fmtNum(previous - current, 1),
       className: "delta-down",
     };
   }
@@ -50,32 +116,59 @@ function compareDirection(current: number | null, previous: number | null) {
   };
 }
 
-function deltaRow(current: number | null, previous: number | null, suffix = "") {
+function deltaRow(
+  current: number | null,
+  previous: number | null,
+  suffix = "",
+  formatDelta?: (delta: number) => string,
+) {
   const delta = compareDirection(current, previous);
 
   if (current === null) {
     return "No current-week data";
   }
 
+  const formattedLabel =
+    current !== null && previous !== null && formatDelta
+      ? formatDelta(Math.abs(current - previous))
+      : delta.label;
+
   return (
     <span className={`delta-row ${delta.className}`}>
       {delta.icon}
       <span>
-        {delta.label}
+        {formattedLabel}
         {suffix}
       </span>
     </span>
   );
 }
 
-export function HomeSection({ stats }: Props) {
+export function HomeSection({
+  stats,
+  selectedWeekStart,
+  onWeekChange,
+}: Props) {
+  const weekOptions = buildWeekOptions();
+
   return (
     <section>
       <SectionHeader
         label="Weekly Snapshot"
         title="Home"
-        view="table"
-        onViewChange={() => {}}
+        rightSlot={
+          <select
+            className="period-select"
+            value={selectedWeekStart}
+            onChange={(e) => onWeekChange(e.target.value)}
+          >
+            {weekOptions.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        }
       />
       <StatCards>
         <StatCard
@@ -85,7 +178,12 @@ export function HomeSection({ stats }: Props) {
               ? fmtDurMins(stats.avgSleepThisWeek)
               : "—"
           }
-          sub={deltaRow(stats.avgSleepThisWeek, stats.avgSleepPreviousWeek)}
+          sub={deltaRow(
+            stats.avgSleepThisWeek,
+            stats.avgSleepPreviousWeek,
+            "",
+            (delta) => fmtDurMins(Math.round(delta)),
+          )}
           icon={<Moon size={20} />}
           iconColor="#2563eb"
         />

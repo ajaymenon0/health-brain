@@ -193,11 +193,15 @@ function runDistanceKm(runs: Array<{ total_time_sec: number; avg_speed_kmh: numb
 export async function fetchDashboardData(
   telegramUserId: number,
   period: Period = "10",
+  selectedWeekStart?: string,
 ): Promise<DashboardData> {
   const user = await ensureUser(telegramUserId);
   const uid = user.id;
 
-  const weekStart = startOfWeekISO();
+  const weekStart =
+    selectedWeekStart && /^\d{4}-\d{2}-\d{2}$/.test(selectedWeekStart)
+      ? selectedWeekStart
+      : startOfWeekISO();
   const previousWeekStart = shiftISODate(weekStart, -7);
   const nextWeekStart = shiftISODate(weekStart, 7);
   const monthStart = startOfMonthISO();
@@ -268,7 +272,7 @@ export async function fetchDashboardData(
       { method: "GET" },
     ),
     supabaseRequest<Array<{ total_time_sec: number; avg_speed_kmh: number }>>(
-      `garmin_run_entries?select=total_time_sec,avg_speed_kmh&user_id=eq.${uid}&run_date=gte.${weekStart}`,
+      `garmin_run_entries?select=total_time_sec,avg_speed_kmh&user_id=eq.${uid}&run_date=gte.${weekStart}&run_date=lt.${nextWeekStart}`,
       { method: "GET" },
     ),
     supabaseRequest<Array<{ total_time_sec: number; avg_speed_kmh: number }>>(
@@ -284,7 +288,7 @@ export async function fetchDashboardData(
       { method: "GET" },
     ),
     supabaseRequest<Array<{ steps: number }>>(
-      `garmin_daily_stats_entries?select=steps&user_id=eq.${uid}&entry_date=gte.${weekStart}`,
+      `garmin_daily_stats_entries?select=steps&user_id=eq.${uid}&entry_date=gte.${weekStart}&entry_date=lt.${nextWeekStart}`,
       { method: "GET" },
     ),
     supabaseRequest<Array<{ steps: number }>>(
