@@ -1,4 +1,6 @@
 import http from "http";
+import { createApplicationServer } from "./httpServer";
+import { integratedMcpConfig } from "./mcp/config";
 import fs from "fs";
 import path from "path";
 import config from "./config";
@@ -84,7 +86,7 @@ function handleStatic(urlPath: string, res: http.ServerResponse): void {
 }
 
 export function startServer(): void {
-  const server = http.createServer((req, res) => {
+  const server = createApplicationServer(integratedMcpConfig(process.env), (req, res) => {
     const urlPath = req.url?.split("?")[0] ?? "/";
 
     if (req.method === "GET" && urlPath === "/api/data") {
@@ -95,7 +97,7 @@ export function startServer(): void {
     handleStatic(urlPath === "/" ? "/index.html" : urlPath, res);
   });
 
-  server.listen(config.server.port, () => {
+  server.listen(config.server.port, "0.0.0.0", () => {
     console.log(`HTTP server listening on port ${config.server.port}`);
   });
 }

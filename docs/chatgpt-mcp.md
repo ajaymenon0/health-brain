@@ -1,6 +1,6 @@
 # Health Brain MCP → ChatGPT
 
-This is a private, single-owner, read-only MCP server. ChatGPT retrieves your saved Supabase records through nine tools, then analyzes them in the conversation. The Telegram bot and dashboard continue to run separately. No OpenAI API call is made by this server, and it needs neither `OPENAI_API_KEY` nor `TELEGRAM_BOT_TOKEN`.
+This is a private, single-owner, read-only MCP server. ChatGPT retrieves your saved Supabase records through nine tools, then analyzes them in the conversation. The Telegram bot, dashboard, and MCP can run together with `npm start` on one Render service. No OpenAI API call is made by this server, and it needs neither `OPENAI_API_KEY` nor `TELEGRAM_BOT_TOKEN`.
 
 ## 1. Configure authentication
 
@@ -40,23 +40,35 @@ Local endpoint: `http://127.0.0.1:3001/mcp`. The process loads `.env` but valida
 
 For manual inspection, use MCP Inspector with Streamable HTTP and a valid OAuth access token. The automated tests below exercise the actual MCP SDK client without real data.
 
-## 3. Deploy a dedicated service
+## 3. Deploy everything on the existing Render service
 
-Deploy this repository as a **separate service** from the existing Telegram bot/dashboard. For Render, create a Node web service with:
+Use the existing bot/dashboard Web Service and repository. Push these changes to its deployed branch, add the MCP variables, and redeploy. No second service or listener is required.
 
 | Setting | Value |
 | --- | --- |
-| Build command | `npm ci --include=dev` |
-| Start command | `npm run mcp:start` |
+| Build command | `npm ci --include=dev && npm run build && npm --prefix frontend ci --include=dev && npm --prefix frontend run build` |
+| Start command | `npm start` |
 | Health check path | `/healthz` |
-| `MCP_HOST` | `0.0.0.0` |
-| `MCP_PORT` | `10000` |
+| Bind address | `0.0.0.0` (set by the combined server) |
+| Port | Render's existing `PORT` (normally `10000`) |
 
-Set all remaining variables from `.env.mcp.example` in the service's secret/environment settings. Set `MCP_PUBLIC_URL` to that service's HTTPS URL plus `/mcp`, and configure the OAuth resource/audience to match. `tsx` is an existing development dependency, so the build explicitly includes development dependencies.
+Keep the existing bot, OpenAI, Supabase and dashboard environment variables. Add `MCP_TELEGRAM_USER_ID`, `MCP_PUBLIC_URL`, `MCP_OAUTH_ISSUER`, `MCP_OAUTH_JWKS_URL`, and `MCP_OWNER_SUBJECT`. Set `MCP_PUBLIC_URL` to the **existing service's HTTPS URL plus /mcp**. Preserve the exact issuer, including its trailing slash. `MCP_HOST` and `MCP_PORT` are ignored by `npm start`; they are only for standalone MCP development.
 
-The service exposes only MCP, OAuth resource metadata and liveness; it does not serve the existing unauthenticated dashboard API. Keep the service-role key server-side. Browser Origin headers are accepted only for the canonical MCP origin; ChatGPT's server-to-server requests do not need browser CORS. Put TLS termination and operational rate limits at your hosting/reverse-proxy layer. Supabase PostgREST should allow at least 100 rows per response (its normal default is larger).
+Routes share the same origin:
 
-For local development, an HTTPS forwarding tunnel can forward to port 3001. Set the canonical public URL and OAuth audience to that tunnel's URL before running. Changing URLs requires updating both and reconnecting. Secure MCP Tunnel is another supported ChatGPT option, but requires separate Platform tunnel provisioning; it is not provisioned by this repository.
+- `/` and static paths: dashboard frontend.
+- `/api/data`: existing dashboard API.
+- `/mcp`: OAuth-protected MCP endpoint.
+- `/.well-known/oauth-protected-resource` and `/.well-known/oauth-protected-resource/mcp`: public OAuth discovery.
+- `/healthz`: public process liveness check, not a database or Telegram connectivity check.
+
+If no MCP identity/OAuth variables are present, the dashboard and bot still start and MCP routes return 503. If any are present, all required MCP settings must be valid or startup fails. MCP Origin checks apply to MCP routes; dashboard routing retains its existing behavior. The existing dashboard API's authentication policy is unchanged; MCP OAuth protects only MCP requests.
+
+When migrating from another hostname, create an Auth0 API with the new exact `/mcp` identifier (identifiers cannot be edited), add `health:read`, and authorize the existing ChatGPT application for **User-Delegated Access** on that API. Keep the OAuth client credentials. Update/recreate the ChatGPT connection with the new URL and allow its exact callback URI in Auth0 if it changes.
+
+After deployment, verify `/healthz`, the dashboard, OAuth metadata, and an authenticated MCP tool call. Only then stop the old MCP-only service or local tunnel. This code change does not deploy to Render or delete any service.
+
+For isolated local development, `npm run mcp:dev` still runs MCP on port 3001. To test the combined service locally, use `npm run dev` and point the tunnel to `PORT` (default 3000). Keep the canonical public URL and OAuth audience synchronized with the tunnel URL.
 
 ## 4. Install in ChatGPT and use your project
 

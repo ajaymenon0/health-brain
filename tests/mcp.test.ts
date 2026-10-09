@@ -130,3 +130,36 @@ test("summary bounds dense datasets and discloses truncation", async () => {
   const summary = await data.summary(range);
   assert.deepEqual(summary.coverage.runs, { record_count: 1000, days_with_records: 1, truncated: true, next_offset: 1000, per_record_averages: { total_time_sec: 100 } });
 });
+
+test("combined server serves dashboard routes and protects MCP on the same listener", async () => {
+  const { createApplicationServer } = await import("../src/httpServer");
+  for (const mcp of [config, undefined]) {
+    const server = createApplicationServer(mcp, (req, res) => {
+      res.setHeader("Content-Type", req.url === "/api/data" ? "application/json" : "text/html");
+      res.end(req.url === "/api/data" ? '{"dashboard":true}' : "<html>dashboard</html>");
+    });
+    server.listen(0, "127.0.0.1"); await once(server, "listening");
+    const address = server.address(); assert.ok(address && typeof address !== "string");
+    const base = `http://127.0.0.1:${address.port}`;
+    try {
+      assert.deepEqual(await (await fetch(`${base}/healthz`)).json(), { status: "ok" });
+      assert.match(await (await fetch(`${base}/`)).text(), /dashboard/);
+      assert.deepEqual(await (await fetch(`${base}/api/data`, { headers: { Origin: "http://localhost:5173" } })).json(), { dashboard: true });
+      assert.equal((await fetch(`${base}/mcp`, { method: "POST" })).status, mcp ? 401 : 503);
+      assert.equal((await fetch(`${base}/mcp/unknown`)).status, mcp ? 404 : 503);
+      const discovery = await fetch(`${base}/.well-known/oauth-protected-resource/mcp`);
+      if (mcp) assert.equal((await discovery.json()).resource, config.MCP_PUBLIC_URL);
+      else assert.equal(discovery.status, 503);
+    } finally { server.closeAllConnections(); await new Promise<void>(resolve => server.close(() => resolve())); }
+  }
+});
+
+test("integrated MCP configuration is optional but partial settings fail closed", async () => {
+  const { integratedMcpConfig } = await import("../src/mcp/config");
+  assert.equal(integratedMcpConfig({ PORT: "10000" }), undefined);
+  assert.throws(() => integratedMcpConfig({ MCP_PUBLIC_URL: config.MCP_PUBLIC_URL }), /Invalid MCP configuration/);
+  assert.throws(() => integratedMcpConfig({ MCP_OWNER_SUBJECT: "owner" }), /Invalid MCP configuration/);
+  const env = Object.fromEntries(Object.entries(config).map(([key, value]) => [key, String(value)]));
+  const parsed = integratedMcpConfig({ ...env, MCP_PORT: "unused", MCP_HOST: "unused", PORT: "10000" });
+  assert.equal(parsed?.MCP_PUBLIC_URL, config.MCP_PUBLIC_URL);
+});

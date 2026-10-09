@@ -17,3 +17,13 @@ export const mcpConfigSchema = z.object({
   MCP_HOST: z.string().default("127.0.0.1"),
 });
 export type McpConfig = z.infer<typeof mcpConfigSchema>;
+
+// Existing bot deployments remain usable until MCP credentials are configured.
+// Partial configuration fails startup rather than exposing an unprotected endpoint.
+export function integratedMcpConfig(env: NodeJS.ProcessEnv): McpConfig | undefined {
+  const keys = ["MCP_PUBLIC_URL", "MCP_OAUTH_ISSUER", "MCP_OAUTH_JWKS_URL", "MCP_OWNER_SUBJECT", "MCP_TELEGRAM_USER_ID"];
+  if (!keys.some(key => env[key] !== undefined)) return undefined;
+  const parsed = mcpConfigSchema.safeParse({ ...env, MCP_HOST: "0.0.0.0", MCP_PORT: 3001 });
+  if (!parsed.success) throw new Error("Invalid MCP configuration: " + parsed.error.issues.map(issue => issue.path.join(".") + ": " + issue.message).join("; "));
+  return parsed.data;
+}

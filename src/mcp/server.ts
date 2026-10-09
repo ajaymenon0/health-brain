@@ -6,7 +6,7 @@ import { createTokenVerifier } from "./auth";
 import { HealthData } from "./data";
 import { createHealthMcp } from "./tools";
 
-export function createMcpHttpServer(config: McpConfig, options: { data?: HealthData; verify?: (authorization: string | undefined) => Promise<void> } = {}) {
+export function createMcpHttpServer(config: McpConfig, options: { data?: HealthData; verify?: (authorization: string | undefined) => Promise<void>; fallback?: http.RequestListener } = {}) {
   const data = options.data ?? new HealthData(config.SUPABASE_URL, config.SUPABASE_SERVICE_ROLE_KEY, config.MCP_TELEGRAM_USER_ID);
   const verify = options.verify ?? createTokenVerifier(config);
   const publicOrigin = new URL(config.MCP_PUBLIC_URL).origin;
@@ -18,6 +18,10 @@ export function createMcpHttpServer(config: McpConfig, options: { data?: HealthD
   return http.createServer(async (req, res) => {
     try {
       const pathname = new URL(req.url ?? "/", "http://localhost").pathname;
+      const mcpRoute = pathname === "/mcp" || pathname.startsWith("/mcp/") || pathname.startsWith("/.well-known/oauth-protected-resource");
+      if (!mcpRoute && pathname !== "/healthz" && options.fallback) {
+        options.fallback(req, res); return;
+      }
       if (req.headers.origin && req.headers.origin !== publicOrigin) {
         json(res, 403, { error: "Origin not allowed" }); return;
       }
